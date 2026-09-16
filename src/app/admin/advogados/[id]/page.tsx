@@ -1,0 +1,1 @@
+import { AdminPortal } from '@/components/admin/admin-portal'; export default async function Page({ params }: { params: Promise<{ id: string }> }) { const { id } = await params; return <AdminPortal view="lawyer-detail" id={id}/>; }
