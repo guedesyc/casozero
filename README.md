@@ -38,6 +38,8 @@ src/
 
 Componentes acessam dados por `services/cases.ts`; os mocks não estão acoplados à interface. Para integrar Supabase, substitua a implementação de `casesService` por chamadas à API. Para IA real, implemente um `OpenAIAIService` no lugar de `mockAIService` e chame-o somente por um endpoint de servidor, como `POST /api/interview/message`.
 
+O endpoint `POST /api/interview/message` já existe como fronteira segura e usa o mock enquanto não houver credencial de provedor configurada. A troca para IA real deve acontecer dentro dessa rota, mantendo a chave exclusivamente no servidor.
+
 ## Integrações futuras
 
 `.env.example` indica as variáveis esperadas para OpenAI e Supabase. Nenhuma chave, documento real ou dado sensível é usado neste MVP. O upload atual é apenas uma interface de experiência; armazenamento seguro, autenticação, LGPD definitiva e notificações devem ser implementados no backend antes do uso em produção.
