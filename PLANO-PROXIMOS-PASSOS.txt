@@ -172,3 +172,79 @@ INFORMAÇÕES NECESSÁRIAS DO RESPONSÁVEL
 - Gateway de pagamento escolhido.
 - Domínio e provedor de hospedagem.
 
+
+ATUALIZAÇÃO — SITUAÇÃO EM 17/09/2026
+====================================
+
+O projeto ainda não possui casos reais. Portanto, a próxima fase deve usar
+somente dados fictícios, até que autenticação, permissões e segurança estejam
+validadas.
+
+SITUAÇÃO ATUAL
+--------------
+[x] Landing page publicada no GitHub Pages.
+[x] Painel visual do advogado e administrador geral.
+[x] Fluxo demonstrativo de entrevista.
+[x] Perguntas separadas por área jurídica.
+[x] Projeto Supabase criado: Caso Zero.
+[x] Bucket privado `documentos` criado.
+[x] Limite de arquivos configurado em 50 MB.
+[x] Tabelas iniciais criadas no Supabase.
+[x] RLS e políticas iniciais aplicadas.
+[x] SDK do Supabase instalado no projeto.
+[x] Cliente Supabase preparado em `src/lib/supabase.ts`.
+[x] Configuração local criada em `.env.local`.
+[x] Build e lint validados.
+[ ] Login real conectado às telas.
+[ ] Usuários reais criados no Authentication.
+[ ] Dados simulados substituídos por consultas ao Supabase.
+[ ] Upload real de documentos implementado.
+[ ] IA integrada.
+[ ] Aplicação dinâmica publicada em produção.
+
+ESTRATÉGIA RECOMENDADA AGORA
+-----------------------------
+1. Criar um ambiente de demonstração com dados fictícios.
+2. Criar contas de teste para super administrador, advogado e equipe.
+3. Conectar o login real antes de importar qualquer caso.
+4. Criar um escritório fictício chamado `Escritório Demo`.
+5. Criar casos fictícios de áreas diferentes: trabalhista, consumidor e família.
+6. Validar isolamento: cada escritório só pode acessar os próprios casos.
+7. Testar mensagens, cronologia, atribuição e alteração de status.
+8. Testar upload e download de documentos no bucket privado.
+9. Corrigir problemas encontrados no fluxo de demonstração.
+10. Somente depois iniciar a integração com a IA.
+
+DADOS FICTÍCIOS SUGERIDOS
+-------------------------
+- Administrador: admin.demo@casozero.test
+- Advogado: advogado.demo@casozero.test
+- Equipe: equipe.demo@casozero.test
+- Escritório: Escritório Demo
+- Clientes: Ana Souza, Bruno Lima e Carla Mendes
+
+Esses dados devem ser claramente identificados como demonstração e nunca devem
+conter nomes, telefones, documentos ou informações de pessoas reais.
+
+CRITÉRIOS PARA COMEÇAR A USAR CASOS REAIS
+------------------------------------------
+[ ] Login e recuperação de senha funcionando.
+[ ] Regras de acesso testadas com contas diferentes.
+[ ] Bucket privado validado.
+[ ] Cronologia usando timestamps reais.
+[ ] Logs e tratamento de erros funcionando.
+[ ] Backup definido.
+[ ] Política de privacidade e consentimento preparados.
+[ ] Ambiente de produção separado do ambiente de demonstração.
+[ ] Chaves e variáveis de ambiente configuradas na hospedagem.
+
+PRÓXIMO CICLO DE DESENVOLVIMENTO
+---------------------------------
+1. Implementar autenticação real no CasoZero.
+2. Criar a tela de login e proteção das rotas internas.
+3. Criar dados fictícios de demonstração no Supabase.
+4. Conectar a listagem e o detalhe de casos ao banco.
+5. Conectar mensagens e cronologia.
+6. Implementar upload privado de documentos.
+7. Testar no desktop e no celular.
+8. Preparar a integração da IA.
