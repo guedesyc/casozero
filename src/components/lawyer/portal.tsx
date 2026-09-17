@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { BarChart3, Bell, Check, ChevronRight, ClipboardList, Copy, Download, ExternalLink, FileText, LayoutDashboard, Link2, Menu, MoreHorizontal, QrCode, Search, Settings, SlidersHorizontal, X } from 'lucide-react';
+import { BarChart3, Bell, Check, ChevronRight, ClipboardList, Copy, CreditCard, Download, ExternalLink, FileText, LayoutDashboard, Link2, Menu, MoreHorizontal, QrCode, Search, Settings, SlidersHorizontal, Users, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { lawyer } from '@/mocks/data';
 import { casesService } from '@/services/cases';
 import { CaseStatus, LegalCase, PracticeArea } from '@/types';
 import { AnalyticsPage, InboxPage, SubscriptionPage, TeamPage } from './operations';
 const labels:Record<CaseStatus,string>={new:'Novo',reviewing:'Em análise',waiting_information:'Aguardando informação',interested:'Interessado',not_a_fit:'Não atende ao perfil',converted:'Convertido em cliente',archived:'Arquivado'};
-const icons=[LayoutDashboard,ClipboardList,Bell,SlidersHorizontal,Link2,Settings];
+const icons=[LayoutDashboard,ClipboardList,Bell,SlidersHorizontal,Users,BarChart3,Link2,Settings,CreditCard,Settings];
 const nav=[['Visão geral','/app'],['Casos','/app/casos'],['Pendências','/app/pendencias'],['Caixa de entrada','/app/caixa-de-entrada'],['Equipe','/app/equipe'],['Analytics','/app/analytics'],['Configuração do atendimento','/app/atendimento'],['Meu link','/app/meu-link'],['Assinatura','/app/configuracoes/assinatura'],['Configurações','/app/configuracoes']];
 export function Sidebar(){return <aside className="sidebar"><Link href="/app" className="logo"><b>CZ</b><span>CasoZero</span></Link><div className="office"><div className="mini-avatar">MG</div><div><strong>{lawyer.name}</strong><small>{lawyer.firm}</small></div></div><nav>{nav.map(([label,href],i)=>{const Icon=icons[i];return <Link href={href} key={href}><Icon size={18}/>{label}</Link>})}</nav><div className="sidebar-bottom"><a href={`/${lawyer.slug}`} target="_blank"><ExternalLink size={16}/> Ver página pública</a></div></aside>}
 function Status({status}:{status:CaseStatus}){return <span className={`status ${status}`}>{labels[status]}</span>}
