@@ -40,6 +40,10 @@ Componentes acessam dados por `services/cases.ts`; os mocks não estão acoplado
 
 O endpoint `POST /api/interview/message` já existe como fronteira segura e usa o mock enquanto não houver credencial de provedor configurada. A troca para IA real deve acontecer dentro dessa rota, mantendo a chave exclusivamente no servidor.
 
+## Planos e operação
+
+Os planos estão centralizados em `src/config/plans.ts`: CasoUm (50 atendimentos), CasoDois (200) e CasoTres (1.000 e até 10 advogados). A assinatura usa dados demonstrativos e está disponível em `/app/configuracoes/assinatura`. Os fluxos de equipe, caixa de entrada e analytics do CasoTres ficam em `/app/equipe`, `/app/caixa-de-entrada` e `/app/analytics`. Nenhuma tela realiza cobrança real.
+
 ## Integrações futuras
 
 `.env.example` indica as variáveis esperadas para OpenAI e Supabase. Nenhuma chave, documento real ou dado sensível é usado neste MVP. O upload atual é apenas uma interface de experiência; armazenamento seguro, autenticação, LGPD definitiva e notificações devem ser implementados no backend antes do uso em produção.
