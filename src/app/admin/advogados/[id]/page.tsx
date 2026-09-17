@@ -1,1 +1,1 @@
-import { AdminPortal } from '@/components/admin/admin-portal'; export default async function Page({ params }: { params: Promise<{ id: string }> }) { const { id } = await params; return <AdminPortal view="lawyer-detail" id={id}/>; }
+import { AdminPortal } from '@/components/admin/admin-portal'; export default async function Page({ params }: { params: Promise<{ id: string }> }) { const { id } = await params; return <AdminPortal view="lawyer-detail" id={id}/>; } export function generateStaticParams(){ return [{id:'adv-001'},{id:'adv-002'},{id:'adv-003'},{id:'adv-004'}]; }

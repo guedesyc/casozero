@@ -1,1 +1,1 @@
-import { Portal } from '@/components/lawyer/portal'; export default async function Page({params}:{params:Promise<{id:string}>}){const {id}=await params;return <Portal view="detail" id={id}/>}
+import { Portal } from '@/components/lawyer/portal'; export default async function Page({params}:{params:Promise<{id:string}>}){const {id}=await params;return <Portal view="detail" id={id}/>} export function generateStaticParams(){ return [{id:'175'},{id:'176'},{id:'177'},{id:'178'},{id:'179'},{id:'180'},{id:'181'},{id:'182'},{id:'183'},{id:'184'}]; }

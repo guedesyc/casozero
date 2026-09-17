@@ -40,6 +40,10 @@ Componentes acessam dados por `services/cases.ts`; os mocks não estão acoplado
 
 O endpoint `POST /api/interview/message` já existe como fronteira segura e usa o mock enquanto não houver credencial de provedor configurada. A troca para IA real deve acontecer dentro dessa rota, mantendo a chave exclusivamente no servidor.
 
+## Validação no GitHub Pages
+
+O workflow `.github/workflows/deploy-pages.yml` publica automaticamente a versão estática a cada push na branch `master`. Depois de habilitar **Settings → Pages → Source: GitHub Actions** no repositório, a demonstração ficará disponível em `https://guedesyc.github.io/casozero/`. A versão Pages usa mocks e `localStorage`; endpoints de API e Firebase entram quando houver hospedagem com servidor.
+
 ## Planos e operação
 
 Os planos estão centralizados em `src/config/plans.ts`: CasoUm (50 atendimentos), CasoDois (200) e CasoTres (1.000 e até 10 advogados). A assinatura usa dados demonstrativos e está disponível em `/app/configuracoes/assinatura`. Os fluxos de equipe, caixa de entrada e analytics do CasoTres ficam em `/app/equipe`, `/app/caixa-de-entrada` e `/app/analytics`. Nenhuma tela realiza cobrança real.
