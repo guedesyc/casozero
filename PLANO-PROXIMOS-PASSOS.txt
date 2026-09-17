@@ -1,0 +1,174 @@
+PLANO DE CONTINUIDADE — CASOZERO
+================================
+
+Objetivo
+--------
+Transformar o protótipo atual em uma aplicação real, com usuários, escritórios,
+casos persistidos, entrevista com IA e publicação segura em produção.
+
+SITUAÇÃO ATUAL
+--------------
+[x] Landing page publicada no GitHub Pages.
+[x] Painel do advogado criado.
+[x] Área do administrador geral criada.
+[x] Cadastro visual de advogados e equipe.
+[x] Fluxo demonstrativo de entrevista.
+[x] Perguntas separadas por área jurídica.
+[x] Resumo e cronologia demonstrativos.
+[x] Exclusão de mensagens no chat de teste.
+[x] Responsividade inicial para celular.
+[ ] Firebase conectado.
+[ ] Autenticação real implementada.
+[ ] Banco de dados real implementado.
+[ ] API de IA conectada.
+[ ] Pagamentos e assinaturas conectados.
+[ ] Publicação do sistema dinâmico em produção.
+
+ETAPA 1 — FIREBASE
+------------------
+[ ] Criar um projeto no Firebase.
+[ ] Ativar Authentication.
+[ ] Escolher os métodos de login, inicialmente e-mail e senha.
+[ ] Ativar o Firestore Database.
+[ ] Ativar o Storage para documentos e anexos.
+[ ] Criar um arquivo de configuração com as variáveis públicas do Firebase.
+[ ] Nunca colocar chaves privadas ou credenciais administrativas no frontend.
+
+Estrutura inicial sugerida no Firestore:
+
+  lawFirms/{lawFirmId}
+    - nome
+    - slug
+    - plano
+    - statusAssinatura
+    - criadoEm
+
+  users/{userId}
+    - nome
+    - email
+    - papel: super_admin, advogado ou equipe
+    - lawFirmId
+    - ativo
+
+  cases/{caseId}
+    - lawFirmId
+    - advogadoId
+    - nomeCliente
+    - idade
+    - profissao
+    - telefone
+    - areaJuridica
+    - resumo
+    - status
+    - criadoEm
+    - atualizadoEm
+
+  cases/{caseId}/messages/{messageId}
+    - autor
+    - texto
+    - tipo
+    - criadoEm
+
+  cases/{caseId}/timeline/{eventId}
+    - tipo
+    - titulo
+    - descricao
+    - criadoEm
+
+ETAPA 2 — AUTENTICAÇÃO E PERMISSÕES
+------------------------------------
+[ ] Criar login real para advogados e equipe.
+[ ] Criar acesso exclusivo do administrador geral.
+[ ] Proteger todas as rotas internas.
+[ ] Implementar recuperação de senha.
+[ ] Permitir ativar, bloquear e remover usuários.
+[ ] Garantir que cada advogado veja somente os dados autorizados.
+[ ] Garantir que a equipe veja somente os dados do próprio escritório.
+[ ] Criar regras de segurança do Firestore.
+[ ] Testar acesso com contas de papéis diferentes.
+
+ETAPA 3 — MIGRAÇÃO DO PROTÓTIPO
+--------------------------------
+[ ] Remover dependência dos dados fixos e do localStorage.
+[ ] Salvar novos clientes diretamente no Firestore.
+[ ] Salvar mensagens, anexos, status e cronologia.
+[ ] Exibir telefone do cliente na tela do advogado.
+[ ] Corrigir a ordem cronológica usando timestamps reais.
+[ ] Permitir atribuir um caso a um advogado.
+[ ] Criar comentários internos.
+[ ] Permitir reabrir e encerrar atendimentos.
+[ ] Criar estados de carregamento, vazio e erro.
+
+ETAPA 4 — INTELIGÊNCIA ARTIFICIAL
+----------------------------------
+[ ] Escolher o provedor de IA.
+[ ] Criar a chave da API no servidor.
+[ ] Nunca expor a chave no navegador.
+[ ] Criar endpoint seguro para conversar com a IA.
+[ ] Manter perguntas por área jurídica.
+[ ] Coletar inicialmente nome, idade, profissão e telefone.
+[ ] Fazer perguntas complementares relacionadas à área escolhida.
+[ ] Gerar resumo estruturado para o advogado.
+[ ] Identificar urgência, área e informações ausentes.
+[ ] Configurar limite de mensagens por atendimento.
+[ ] Criar tratamento para falhas e indisponibilidade da IA.
+[ ] Exibir aviso de que a entrevista não substitui orientação jurídica.
+
+ETAPA 5 — ASSINATURAS E PAGAMENTOS
+-----------------------------------
+[ ] Escolher gateway: Stripe, Mercado Pago ou equivalente.
+[ ] Definir planos, preços e limites definitivos.
+[ ] Criar checkout.
+[ ] Criar webhook no servidor.
+[ ] Atualizar automaticamente o status da assinatura.
+[ ] Bloquear recursos quando o plano atingir o limite.
+[ ] Implementar upgrade, downgrade e cancelamento.
+[ ] Criar tela de histórico e situação da assinatura.
+
+ETAPA 6 — PUBLICAÇÃO EM PRODUÇÃO
+---------------------------------
+[ ] Manter o GitHub Pages apenas para demonstração estática, se desejado.
+[ ] Publicar a aplicação dinâmica na Vercel, Firebase Hosting ou similar.
+[ ] Configurar variáveis de ambiente de produção.
+[ ] Configurar domínio casozero.com.br.
+[ ] Configurar HTTPS.
+[ ] Configurar backend/API para IA e webhooks.
+[ ] Configurar ambiente separado para testes e produção.
+[ ] Remover dados e credenciais de demonstração antes do lançamento.
+
+ETAPA 7 — QUALIDADE E SEGURANÇA
+-------------------------------
+[ ] Testar desktop, tablet e celular.
+[ ] Testar Chrome, Edge e Safari.
+[ ] Testar criação, edição, exclusão e reabertura de casos.
+[ ] Testar dois escritórios sem mistura de dados.
+[ ] Testar permissões de administrador, advogado e equipe.
+[ ] Validar telefone, e-mail e campos obrigatórios.
+[ ] Criar política de privacidade.
+[ ] Criar termos de uso.
+[ ] Revisar LGPD e consentimento para coleta de dados.
+[ ] Configurar monitoramento de erros.
+[ ] Configurar backup do banco de dados.
+[ ] Fazer teste final de segurança antes do lançamento.
+
+ORDEM RECOMENDADA PARA O PRÓXIMO CICLO
+---------------------------------------
+1. Criar o projeto Firebase e enviar as configurações necessárias.
+2. Implementar login e regras de acesso.
+3. Conectar advogados, equipe e escritórios ao Firestore.
+4. Migrar casos, mensagens e cronologia para o banco real.
+5. Integrar a IA por uma API protegida.
+6. Publicar a aplicação dinâmica em produção.
+7. Integrar pagamentos e assinaturas.
+8. Fazer testes completos e preparar o lançamento.
+
+INFORMAÇÕES NECESSÁRIAS DO RESPONSÁVEL
+---------------------------------------
+- Nome do projeto Firebase.
+- E-mail que será o administrador geral.
+- Método de login desejado.
+- Provedor de IA escolhido.
+- Plano, preços e limites definitivos.
+- Gateway de pagamento escolhido.
+- Domínio e provedor de hospedagem.
+
