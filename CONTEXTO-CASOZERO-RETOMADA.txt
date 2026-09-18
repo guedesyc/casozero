@@ -166,3 +166,21 @@ de demonstração. Somente usar dados reais depois de validar autenticação,
 permissões, isolamento entre escritórios, Storage privado, logs, backups,
 política de privacidade e ambiente de produção separado.
 
+
+12. RETOMADA — PUBLICAÇÃO E DEPURAÇÃO (18/09/2026)
+----------------------------------------------------
+O painel publicado em GitHub Pages usa arquivos estáticos versionados na raiz (`app/`, `_next/`, `app.html` e `index.html`). O workflow é `.github/workflows/deploy-pages.yml`.
+
+Correções publicadas nesta sessão:
+- `c50c606`: workflow Pages reescrito com YAML válido.
+- `1af44e9`: montagem do site estático.
+- `fdbae5b`: atualização inicial do bundle do painel.
+- `6273a0aa`: bundle com menu Agenda.
+- `3c305936`: referência para bundle com nome novo, evitando cache do Pages.
+- `50bf0578`: rota estática `app/agenda/index.html`.
+- `7256f85d`: bundle corrigido com ícone para todos os itens do menu.
+
+O erro React #130 veio de 11 itens de menu com somente 10 ícones e foi corrigido. A rota `/app/agenda/` foi testada diretamente e abre. Ainda existe aviso React #418 de hidratação em algumas páginas estáticas; a solução estrutural é publicar o output estático completo do Next sem misturar HTML antigo com bundles manuais.
+
+Para retomar: clonar o repositório na branch `master`, executar `npm ci`, copiar `.env.example` para `.env.local`, executar `npm run build` e `npm run lint`, e testar `/app/`, `/app/agenda/` e `/app/casos/`.
+
