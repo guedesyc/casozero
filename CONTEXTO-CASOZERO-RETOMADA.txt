@@ -1,0 +1,168 @@
+CONTEXTO DO PROJETO CASOZERO — RETOMADA
+=======================================
+
+Este arquivo foi preparado para continuar o desenvolvimento do CasoZero em
+outro computador ou em uma nova sessão.
+
+1. VISÃO DO PRODUTO
+-------------------
+O CasoZero é uma plataforma de pré-atendimento para escritórios de advocacia.
+O potencial cliente acessa um link público do escritório, responde a uma
+entrevista inicial e o advogado recebe o caso estruturado no painel.
+
+O objetivo não é substituir o advogado. A plataforma organiza informações,
+identifica a área jurídica, coleta dados iniciais e facilita a triagem.
+
+2. FLUXO PRINCIPAL
+------------------
+1. Cliente acessa o link público do escritório.
+2. Aceita o aviso de atendimento.
+3. Informa nome, idade, profissão e telefone.
+4. Escolhe ou entra em uma área jurídica.
+5. Responde perguntas relacionadas à área.
+6. Revisa as informações.
+7. Finaliza o atendimento.
+8. O caso aparece para o advogado com resumo, telefone e cronologia.
+
+As áreas jurídicas já previstas incluem trabalhista, consumidor e família, com
+possibilidade de adicionar novas áreas.
+
+3. PERFIS DE ACESSO
+-------------------
+SUPER ADMINISTRADOR
+Somente o proprietário geral do CasoZero. Gerencia escritórios, advogados,
+planos, configurações gerais e visão global do sistema.
+
+ADVOGADO
+Cada advogado possui seu próprio acesso e visualiza os casos autorizados do
+seu escritório.
+
+EQUIPE
+Usuários que trabalham dentro de um escritório. O acesso é compartilhado no
+âmbito daquele escritório, respeitando as permissões configuradas.
+
+4. TECNOLOGIA ATUAL
+-------------------
+- Next.js 15.5.2
+- React 19
+- TypeScript
+- CSS próprio e responsivo
+- Lucide React
+- QRCode React
+- Supabase JS SDK
+- GitHub Pages para a landing estática
+- Supabase preparado para banco, autenticação e Storage
+
+5. ROTAS PRINCIPAIS
+-------------------
+Públicas:
+- /
+- /precos
+- /muriloguedes
+- /muriloguedes/trabalhista
+- /muriloguedes/consumidor
+
+Painel do escritório:
+- /app
+- /app/casos
+- /app/casos/[id]
+- /app/pendencias
+- /app/atendimento
+- /app/meu-link
+- /app/configuracoes
+- /app/configuracoes/assinatura
+- /app/equipe
+- /app/caixa-de-entrada
+- /app/analytics
+
+Administrador geral:
+- /admin
+- /admin/advogados
+- /admin/advogados/[id]
+- /admin/casos
+- /admin/atividade
+- /admin/configuracoes
+
+6. SUPABASE JÁ CONFIGURADO
+---------------------------
+Organização: casozero
+Projeto: Caso Zero
+Project ID: rlxaninumfevbectpbub
+Project URL: https://rlxaninumfevbectpbub.supabase.co
+
+Bucket criado:
+- Nome: documentos
+- Privado
+- Limite global atual: 50 MB
+
+Tabelas iniciais criadas:
+- public.law_firms
+- public.profiles
+- public.cases
+- public.case_messages
+- public.case_timeline
+
+Também foram ativados RLS e políticas iniciais de acesso por escritório.
+
+7. CONFIGURAÇÃO LOCAL
+---------------------
+O arquivo `.env.local` existe localmente e contém a URL e a chave pública do
+Supabase. Ele não deve ser enviado ao GitHub.
+
+O arquivo `.env.example` está versionado como modelo para outro computador.
+Preencher localmente:
+
+NEXT_PUBLIC_SUPABASE_URL=https://SEU_PROJECT_ID.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=SUA_CHAVE_PUBLICA
+
+Nunca copiar para o frontend:
+- service_role key;
+- secret keys;
+- credenciais de conta de serviço;
+- senhas ou tokens administrativos.
+
+8. ARQUIVOS IMPORTANTES
+-----------------------
+- `src/lib/supabase.ts`: cliente Supabase.
+- `src/types/index.ts`: tipos do domínio.
+- `src/services/cases.ts`: serviços atuais de casos.
+- `src/services/ai.ts`: serviço de IA simulada.
+- `src/components/public/interview.tsx`: entrevista pública.
+- `src/components/lawyer/portal.tsx`: portal do advogado.
+- `src/components/lawyer/operations.tsx`: operações, equipe e assinatura.
+- `src/components/admin/admin-portal.tsx`: área administrativa.
+- `src/app/globals.css`: estilos globais.
+- `PLANO-PROXIMOS-PASSOS.txt`: plano geral do projeto.
+
+9. COMANDOS LOCAIS
+------------------
+No diretório do projeto:
+
+npm install
+npm run dev
+
+Para validar:
+
+npm run lint
+npm run build
+
+Abrir localmente:
+- http://localhost:3000/
+- http://localhost:3000/muriloguedes
+- http://localhost:3000/app
+- http://localhost:3000/admin
+
+10. REPOSITÓRIO
+---------------
+GitHub: https://github.com/guedesyc/casozero
+Branch principal: master
+Landing publicada em:
+https://guedesyc.github.io/casozero/
+
+11. REGRA DE CONTINUIDADE
+-------------------------
+Ainda não existem casos reais. Trabalhar primeiro com dados fictícios e contas
+de demonstração. Somente usar dados reais depois de validar autenticação,
+permissões, isolamento entre escritórios, Storage privado, logs, backups,
+política de privacidade e ambiente de produção separado.
+

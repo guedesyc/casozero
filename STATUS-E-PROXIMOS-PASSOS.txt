@@ -1,0 +1,106 @@
+CASOZERO — SITUAÇÃO ATUAL E PRÓXIMOS PASSOS
+===========================================
+
+DATA DA ATUALIZAÇÃO: 17/09/2026
+
+SITUAÇÃO ATUAL
+--------------
+[x] Landing page com apresentação, benefícios, planos e valores.
+[x] Publicação da landing no GitHub Pages.
+[x] Painel visual do advogado.
+[x] Área do administrador geral.
+[x] Cadastro visual de advogados e equipe.
+[x] Entrevista pública demonstrativa.
+[x] Perguntas separadas por área jurídica.
+[x] Coleta de nome, idade, profissão e telefone.
+[x] Resumo e cronologia demonstrativos.
+[x] Exclusão de mensagens no chat de teste.
+[x] Layout responsivo inicial para celular.
+[x] Projeto Supabase criado.
+[x] Bucket privado `documentos` criado.
+[x] Tabelas iniciais criadas.
+[x] RLS e políticas iniciais aplicadas.
+[x] SDK do Supabase instalado.
+[x] Cliente Supabase preparado no código.
+[x] Variáveis locais configuradas no `.env.local`.
+[x] Lint e build validados.
+
+O QUE AINDA É SIMULADO
+-----------------------
+[ ] Login e logout reais.
+[ ] Recuperação de senha.
+[ ] Usuários e perfis reais.
+[ ] Escritórios reais.
+[ ] Casos persistidos no Supabase.
+[ ] Mensagens persistidas no Supabase.
+[ ] Cronologia persistida com timestamps reais.
+[ ] Upload e download real de documentos.
+[ ] IA real.
+[ ] Pagamentos e assinaturas reais.
+[ ] Hospedagem dinâmica para API e painel.
+
+ESTRATÉGIA RECOMENDADA
+----------------------
+Como ainda não existem casos reais, criar primeiro um ambiente de demonstração
+com usuários, escritório e clientes fictícios. Não usar dados reais nessa fase.
+
+PRÓXIMOS PASSOS EM ORDEM
+-------------------------
+1. Implementar a tela de login com Supabase Auth.
+2. Proteger todas as rotas `/app` e `/admin`.
+3. Criar contas fictícias de super administrador, advogado e equipe.
+4. Criar o escritório fictício `Escritório Demo`.
+5. Criar casos fictícios de trabalhista, consumidor e família.
+6. Substituir os dados simulados por consultas ao Supabase.
+7. Salvar casos, mensagens e cronologia no banco.
+8. Exibir corretamente o telefone na tela do advogado.
+9. Implementar atribuição de casos e comentários internos.
+10. Implementar upload no bucket privado `documentos`.
+11. Testar isolamento de dados entre dois escritórios.
+12. Testar perfis e permissões diferentes.
+13. Integrar a IA por uma API protegida no servidor.
+14. Publicar a aplicação dinâmica em Vercel, Firebase Hosting ou equivalente.
+15. Configurar domínio `casozero.com.br`.
+16. Integrar planos e pagamentos.
+17. Fazer revisão de segurança, LGPD, backups e monitoramento.
+
+CONTAS FICTÍCIAS SUGERIDAS
+--------------------------
+- admin.demo@casozero.test — super_admin
+- advogado.demo@casozero.test — advogado
+- equipe.demo@casozero.test — equipe
+
+Não criar contas com dados de pessoas reais durante os testes.
+
+CRITÉRIOS ANTES DE CASOS REAIS
+------------------------------
+[ ] Login funcionando.
+[ ] Recuperação de senha funcionando.
+[ ] Permissões revisadas.
+[ ] Dois escritórios testados sem mistura de dados.
+[ ] Bucket privado testado.
+[ ] Upload limitado por tipo e tamanho.
+[ ] Cronologia validada.
+[ ] Backup definido.
+[ ] Logs e erros monitorados.
+[ ] Política de privacidade criada.
+[ ] Termos de uso criados.
+[ ] Consentimento do cliente implementado.
+[ ] Ambiente de produção separado do ambiente de teste.
+
+PENDÊNCIAS IMPORTANTES DO RESPONSÁVEL
+--------------------------------------
+- Definir e-mail final do administrador geral.
+- Definir nomes e dados do escritório inicial.
+- Definir provedor de IA.
+- Definir planos, preços e limites finais.
+- Definir gateway de pagamento.
+- Definir hospedagem dinâmica.
+- Configurar domínio oficial.
+
+RESULTADO ESPERADO DO PRÓXIMO CICLO
+------------------------------------
+Um usuário fictício conseguirá fazer login, acessar somente o escritório
+autorizado, visualizar casos fictícios, consultar a cronologia, trocar o status
+do caso e anexar um documento privado.
+
