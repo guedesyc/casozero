@@ -104,3 +104,23 @@ Um usuário fictício conseguirá fazer login, acessar somente o escritório
 autorizado, visualizar casos fictícios, consultar a cronologia, trocar o status
 do caso e anexar um documento privado.
 
+
+DATA DA ATUALIZAÇÃO: 18/09/2026
+
+ENTREGAS RECENTES
+-----------------
+[x] Menu Agenda publicado.
+[x] Rota estática `/app/agenda/` publicada e testada.
+[x] Workflow Pages corrigido e executando com sucesso na última publicação.
+[x] Erro React #130 do menu corrigido (ícone ausente).
+
+PROBLEMA CONHECIDO
+------------------
+[ ] Remover o risco de hidratação React #418 causado pela combinação de HTML estático antigo com bundles manuais. Em alguns navegadores `/app` ainda pode mostrar “client-side exception”. A correção definitiva é gerar e publicar o output estático completo do Next e atualizar todas as referências de chunks de uma só vez.
+
+ÚLTIMA VALIDAÇÃO
+----------------
+- `/app/`: dashboard carregou com Agenda e Caixa de entrada corretos.
+- `/app/agenda/`: abriu sem exceção, com data, descrição e número do caso.
+- Workflow do commit `7256f85d`: `success`.
+
