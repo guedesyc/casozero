@@ -1,0 +1,10 @@
+'use client';
+import { useState } from 'react';
+import { CalendarDays, Plus } from 'lucide-react';
+import { Sidebar } from '@/components/lawyer/portal';
+type Entry={date:string;description:string;caseNumber:string};
+export default function AgendaPage(){
+ const [date,setDate]=useState(''); const [description,setDescription]=useState(''); const [caseNumber,setCaseNumber]=useState(''); const [entries,setEntries]=useState<Entry[]>([]);
+ function add(){if(!date||!description)return;setEntries(x=>[{date,description,caseNumber:caseNumber.replace(/^0+/,'')||'—'},...x]);setDescription('');setCaseNumber('');}
+ return <div className="app-shell"><Sidebar/><main className="portal"><section className="page"><div className="page-title"><div><p className="eyebrow">Organização</p><h1>Agenda</h1><p>Registre prazos e ações relacionadas aos seus casos.</p></div></div><div className="dashboard-grid"><section className="panel"><div className="panel-title"><div><h2><CalendarDays size={18}/> Registrar ação</h2><p>Associe uma data e, se desejar, o número do caso.</p></div></div><label className="field">Data<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label className="field">O que acontecerá?<textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Ex.: Retornar contato, audiência, envio de documento..."/></label><label className="field">Número do caso<input inputMode="numeric" value={caseNumber} onChange={e=>setCaseNumber(e.target.value)} placeholder="00003 ou 3"/></label><button className="primary small" onClick={add}><Plus size={16}/> Adicionar à agenda</button></section><section className="panel"><div className="panel-title"><div><h2>Próximas ações</h2><p>{entries.length} registro(s) nesta sessão.</p></div></div>{entries.length===0?<p className="muted">Nenhuma ação registrada ainda.</p>:entries.map((entry,i)=><div className="case-row" key={`${entry.date}-${i}`}><div><strong>{new Date(`${entry.date}T12:00:00`).toLocaleDateString('pt-BR')}</strong><p>{entry.description}</p></div><span className="fit alta">Caso #{entry.caseNumber}</span></div>)}</section></div></section></main></div>;
+}
