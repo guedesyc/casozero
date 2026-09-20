@@ -58,7 +58,9 @@
 .pricing-header{height:auto!important;min-height:0!important;background:transparent!important;padding:24px max(24px,calc((100vw - 1180px)/2))!important}
 .pricing-back{display:inline-flex;align-items:center;gap:6px;color:#111!important;font-size:12px;font-weight:600}
 .pricing-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
-.pricing-card{min-width:0!important}
+.pricing-card{min-width:0!important;display:flex!important;flex-direction:column!important}
+.pricing-card ul{flex:1 1 auto!important}
+.pricing-card .full{margin-top:auto!important}
 .pricing-card li{align-items:flex-start!important}
 @media(max-width:900px){.pricing-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:600px){.pricing-grid{grid-template-columns:1fr!important}}
