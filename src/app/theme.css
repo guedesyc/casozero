@@ -21,7 +21,7 @@
 .app-shell>.sidebar nav{justify-content:center!important;border:0!important;padding:8px 0 12px!important;gap:4px!important}
 .app-shell>.sidebar nav a{color:#111!important;padding:9px 11px!important;border-radius:7px!important}
 .app-shell>.sidebar nav a:hover,.app-shell>.sidebar nav a:first-child{background:#ebe7df!important}
-.app-shell>.sidebar:after{content:'';display:block;width:170px;height:62px;margin:7px 0 0;background-image:url('/casozero/casozero-logo.png'),url('/casozero-logo.png');background-repeat:no-repeat;background-position:left center;background-size:1450px auto}
+.app-shell>.sidebar:after{content:'';display:block;width:170px;height:62px;margin:7px 0 0;background-image:url('/casozero/casozero-logo.png'),url('/casozero-logo.png');background-repeat:no-repeat;background-position:center;background-size:1450px auto}
 .app-shell>.portal{background:var(--paper)!important}
 
 /* Apresentação pública: composição clara, sem faixas ou blocos decorativos pesados. */
