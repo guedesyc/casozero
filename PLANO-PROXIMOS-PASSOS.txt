@@ -1,250 +1,55 @@
 PLANO DE CONTINUIDADE — CASOZERO
 ================================
+Atualizado em 20/09/2026.
 
-Objetivo
---------
-Transformar o protótipo atual em uma aplicação real, com usuários, escritórios,
-casos persistidos, entrevista com IA e publicação segura em produção.
+OBJETIVO ATUAL
+--------------
+Transformar o protótipo visual em uma aplicação real, com autenticação,
+persistência segura, limites por assinatura e Analytics baseado em dados reais.
 
 SITUAÇÃO ATUAL
 --------------
-[x] Landing page publicada no GitHub Pages.
-[x] Painel do advogado criado.
-[x] Área do administrador geral criada.
-[x] Cadastro visual de advogados e equipe.
-[x] Fluxo demonstrativo de entrevista.
-[x] Perguntas separadas por área jurídica.
-[x] Resumo e cronologia demonstrativos.
-[x] Exclusão de mensagens no chat de teste.
-[x] Responsividade inicial para celular.
-[ ] Firebase conectado.
-[ ] Autenticação real implementada.
-[ ] Banco de dados real implementado.
-[ ] API de IA conectada.
-[ ] Pagamentos e assinaturas conectados.
-[ ] Publicação do sistema dinâmico em produção.
+[x] Landing page publicada no GitHub Pages, com vídeo hero responsivo.
+[x] Página de preços com CasoZero, CasoUm, CasoDois e CasoTrês.
+[x] Painel do profissional com casos, pendências, agenda, Meu link, assinatura,
+    equipe, Analytics, configuração do atendimento e configurações gerais.
+[x] Menu com rota ativa e saudação por horário do sistema.
+[x] Nome do profissional preparado para aparecer na Visão Geral.
+[x] Entrevista pública demonstrativa com dados básicos e telefone.
+[x] Filtros, agenda, cronologia, status e responsividade em modo demonstração.
+[x] Projeto Supabase criado e cliente inicial preparado em `src/lib/supabase.ts`.
+[ ] Autenticação real e perfis de acesso.
+[ ] Casos, mensagens, agenda e configurações persistidos no Supabase.
+[ ] Upload real de documentos no Storage.
+[ ] Fluxo global de salvamento com “Salvando…”, sucesso e erro.
+[ ] Analytics calculado a partir de status, áreas, assuntos e origem dos leads.
+[ ] Pergunta “Como você conheceu o CasoZero?” na entrevista.
+[ ] IA real integrada por endpoint seguro.
+[ ] Assinaturas e pagamentos reais.
 
-ETAPA 1 — FIREBASE
-------------------
-[ ] Criar um projeto no Firebase.
-[ ] Ativar Authentication.
-[ ] Escolher os métodos de login, inicialmente e-mail e senha.
-[ ] Ativar o Firestore Database.
-[ ] Ativar o Storage para documentos e anexos.
-[ ] Criar um arquivo de configuração com as variáveis públicas do Firebase.
-[ ] Nunca colocar chaves privadas ou credenciais administrativas no frontend.
+ORDEM RECOMENDADA
+-----------------
+1. Confirmar as variáveis `NEXT_PUBLIC_SUPABASE_URL` e chave pública no ambiente.
+2. Criar o schema do banco: profiles, offices, cases, messages, agenda_entries,
+   documents, subscriptions e analytics_events.
+3. Criar políticas RLS por usuário, escritório e função.
+4. Implementar login, cadastro, recuperação de senha e sessão persistente.
+5. Substituir os serviços mock por consultas ao Supabase.
+6. Implementar o salvamento real em todas as telas e feedback visual padronizado.
+7. Conectar documentos ao bucket privado com URLs temporárias.
+8. Adicionar origem do lead à entrevista e registrar a resposta no caso.
+9. Recalcular Analytics com consultas reais e filtros por período.
+10. Aplicar limites e recursos de cada plano.
+11. Integrar IA somente pelo servidor, protegendo chaves e dados pessoais.
+12. Validar segurança, LGPD, mobile, build e deploy antes de produção.
 
-Estrutura inicial sugerida no Firestore:
+REGRA DE IMPLEMENTAÇÃO
+----------------------
+Enquanto o Supabase não estiver integrado à funcionalidade específica, ela deve
+ser tratada como demonstração. Não considerar localStorage ou mock como backend.
 
-  lawFirms/{lawFirmId}
-    - nome
-    - slug
-    - plano
-    - statusAssinatura
-    - criadoEm
-
-  users/{userId}
-    - nome
-    - email
-    - papel: super_admin, advogado ou equipe
-    - lawFirmId
-    - ativo
-
-  cases/{caseId}
-    - lawFirmId
-    - advogadoId
-    - nomeCliente
-    - idade
-    - profissao
-    - telefone
-    - areaJuridica
-    - resumo
-    - status
-    - criadoEm
-    - atualizadoEm
-
-  cases/{caseId}/messages/{messageId}
-    - autor
-    - texto
-    - tipo
-    - criadoEm
-
-  cases/{caseId}/timeline/{eventId}
-    - tipo
-    - titulo
-    - descricao
-    - criadoEm
-
-ETAPA 2 — AUTENTICAÇÃO E PERMISSÕES
-------------------------------------
-[ ] Criar login real para advogados e equipe.
-[ ] Criar acesso exclusivo do administrador geral.
-[ ] Proteger todas as rotas internas.
-[ ] Implementar recuperação de senha.
-[ ] Permitir ativar, bloquear e remover usuários.
-[ ] Garantir que cada advogado veja somente os dados autorizados.
-[ ] Garantir que a equipe veja somente os dados do próprio escritório.
-[ ] Criar regras de segurança do Firestore.
-[ ] Testar acesso com contas de papéis diferentes.
-
-ETAPA 3 — MIGRAÇÃO DO PROTÓTIPO
---------------------------------
-[ ] Remover dependência dos dados fixos e do localStorage.
-[ ] Salvar novos clientes diretamente no Firestore.
-[ ] Salvar mensagens, anexos, status e cronologia.
-[ ] Exibir telefone do cliente na tela do advogado.
-[ ] Corrigir a ordem cronológica usando timestamps reais.
-[ ] Permitir atribuir um caso a um advogado.
-[ ] Criar comentários internos.
-[ ] Permitir reabrir e encerrar atendimentos.
-[ ] Criar estados de carregamento, vazio e erro.
-
-ETAPA 4 — INTELIGÊNCIA ARTIFICIAL
-----------------------------------
-[ ] Escolher o provedor de IA.
-[ ] Criar a chave da API no servidor.
-[ ] Nunca expor a chave no navegador.
-[ ] Criar endpoint seguro para conversar com a IA.
-[ ] Manter perguntas por área jurídica.
-[ ] Coletar inicialmente nome, idade, profissão e telefone.
-[ ] Fazer perguntas complementares relacionadas à área escolhida.
-[ ] Gerar resumo estruturado para o advogado.
-[ ] Identificar urgência, área e informações ausentes.
-[ ] Configurar limite de mensagens por atendimento.
-[ ] Criar tratamento para falhas e indisponibilidade da IA.
-[ ] Exibir aviso de que a entrevista não substitui orientação jurídica.
-
-ETAPA 5 — ASSINATURAS E PAGAMENTOS
------------------------------------
-[ ] Escolher gateway: Stripe, Mercado Pago ou equivalente.
-[ ] Definir planos, preços e limites definitivos.
-[ ] Criar checkout.
-[ ] Criar webhook no servidor.
-[ ] Atualizar automaticamente o status da assinatura.
-[ ] Bloquear recursos quando o plano atingir o limite.
-[ ] Implementar upgrade, downgrade e cancelamento.
-[ ] Criar tela de histórico e situação da assinatura.
-
-ETAPA 6 — PUBLICAÇÃO EM PRODUÇÃO
----------------------------------
-[ ] Manter o GitHub Pages apenas para demonstração estática, se desejado.
-[ ] Publicar a aplicação dinâmica na Vercel, Firebase Hosting ou similar.
-[ ] Configurar variáveis de ambiente de produção.
-[ ] Configurar domínio casozero.com.br.
-[ ] Configurar HTTPS.
-[ ] Configurar backend/API para IA e webhooks.
-[ ] Configurar ambiente separado para testes e produção.
-[ ] Remover dados e credenciais de demonstração antes do lançamento.
-
-ETAPA 7 — QUALIDADE E SEGURANÇA
--------------------------------
-[ ] Testar desktop, tablet e celular.
-[ ] Testar Chrome, Edge e Safari.
-[ ] Testar criação, edição, exclusão e reabertura de casos.
-[ ] Testar dois escritórios sem mistura de dados.
-[ ] Testar permissões de administrador, advogado e equipe.
-[ ] Validar telefone, e-mail e campos obrigatórios.
-[ ] Criar política de privacidade.
-[ ] Criar termos de uso.
-[ ] Revisar LGPD e consentimento para coleta de dados.
-[ ] Configurar monitoramento de erros.
-[ ] Configurar backup do banco de dados.
-[ ] Fazer teste final de segurança antes do lançamento.
-
-ORDEM RECOMENDADA PARA O PRÓXIMO CICLO
+CRITÉRIO DE CONCLUSÃO DA PRÓXIMA ETAPA
 ---------------------------------------
-1. Criar o projeto Firebase e enviar as configurações necessárias.
-2. Implementar login e regras de acesso.
-3. Conectar advogados, equipe e escritórios ao Firestore.
-4. Migrar casos, mensagens e cronologia para o banco real.
-5. Integrar a IA por uma API protegida.
-6. Publicar a aplicação dinâmica em produção.
-7. Integrar pagamentos e assinaturas.
-8. Fazer testes completos e preparar o lançamento.
-
-INFORMAÇÕES NECESSÁRIAS DO RESPONSÁVEL
----------------------------------------
-- Nome do projeto Firebase.
-- E-mail que será o administrador geral.
-- Método de login desejado.
-- Provedor de IA escolhido.
-- Plano, preços e limites definitivos.
-- Gateway de pagamento escolhido.
-- Domínio e provedor de hospedagem.
-
-
-ATUALIZAÇÃO — SITUAÇÃO EM 17/09/2026
-====================================
-
-O projeto ainda não possui casos reais. Portanto, a próxima fase deve usar
-somente dados fictícios, até que autenticação, permissões e segurança estejam
-validadas.
-
-SITUAÇÃO ATUAL
---------------
-[x] Landing page publicada no GitHub Pages.
-[x] Painel visual do advogado e administrador geral.
-[x] Fluxo demonstrativo de entrevista.
-[x] Perguntas separadas por área jurídica.
-[x] Projeto Supabase criado: Caso Zero.
-[x] Bucket privado `documentos` criado.
-[x] Limite de arquivos configurado em 50 MB.
-[x] Tabelas iniciais criadas no Supabase.
-[x] RLS e políticas iniciais aplicadas.
-[x] SDK do Supabase instalado no projeto.
-[x] Cliente Supabase preparado em `src/lib/supabase.ts`.
-[x] Configuração local criada em `.env.local`.
-[x] Build e lint validados.
-[ ] Login real conectado às telas.
-[ ] Usuários reais criados no Authentication.
-[ ] Dados simulados substituídos por consultas ao Supabase.
-[ ] Upload real de documentos implementado.
-[ ] IA integrada.
-[ ] Aplicação dinâmica publicada em produção.
-
-ESTRATÉGIA RECOMENDADA AGORA
------------------------------
-1. Criar um ambiente de demonstração com dados fictícios.
-2. Criar contas de teste para super administrador, advogado e equipe.
-3. Conectar o login real antes de importar qualquer caso.
-4. Criar um escritório fictício chamado `Escritório Demo`.
-5. Criar casos fictícios de áreas diferentes: trabalhista, consumidor e família.
-6. Validar isolamento: cada escritório só pode acessar os próprios casos.
-7. Testar mensagens, cronologia, atribuição e alteração de status.
-8. Testar upload e download de documentos no bucket privado.
-9. Corrigir problemas encontrados no fluxo de demonstração.
-10. Somente depois iniciar a integração com a IA.
-
-DADOS FICTÍCIOS SUGERIDOS
--------------------------
-- Administrador: admin.demo@casozero.test
-- Advogado: advogado.demo@casozero.test
-- Equipe: equipe.demo@casozero.test
-- Escritório: Escritório Demo
-- Clientes: Ana Souza, Bruno Lima e Carla Mendes
-
-Esses dados devem ser claramente identificados como demonstração e nunca devem
-conter nomes, telefones, documentos ou informações de pessoas reais.
-
-CRITÉRIOS PARA COMEÇAR A USAR CASOS REAIS
-------------------------------------------
-[ ] Login e recuperação de senha funcionando.
-[ ] Regras de acesso testadas com contas diferentes.
-[ ] Bucket privado validado.
-[ ] Cronologia usando timestamps reais.
-[ ] Logs e tratamento de erros funcionando.
-[ ] Backup definido.
-[ ] Política de privacidade e consentimento preparados.
-[ ] Ambiente de produção separado do ambiente de demonstração.
-[ ] Chaves e variáveis de ambiente configuradas na hospedagem.
-
-PRÓXIMO CICLO DE DESENVOLVIMENTO
----------------------------------
-1. Implementar autenticação real no CasoZero.
-2. Criar a tela de login e proteção das rotas internas.
-3. Criar dados fictícios de demonstração no Supabase.
-4. Conectar a listagem e o detalhe de casos ao banco.
-5. Conectar mensagens e cronologia.
-6. Implementar upload privado de documentos.
-7. Testar no desktop e no celular.
-8. Preparar a integração da IA.
+Um profissional consegue criar uma conta, configurar seu perfil, receber um
+caso, consultar o histórico, agendar uma ação e ver os dados persistirem após
+sair e entrar novamente no sistema.

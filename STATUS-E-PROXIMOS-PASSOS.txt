@@ -1,126 +1,61 @@
-CASOZERO — SITUAÇÃO ATUAL E PRÓXIMOS PASSOS
-===========================================
+CASOZERO — STATUS E PRÓXIMOS PASSOS
+===================================
+Atualizado em 20/09/2026.
 
-DATA DA ATUALIZAÇÃO: 17/09/2026
-
-SITUAÇÃO ATUAL
---------------
-[x] Landing page com apresentação, benefícios, planos e valores.
-[x] Publicação da landing no GitHub Pages.
-[x] Painel visual do advogado.
-[x] Área do administrador geral.
-[x] Cadastro visual de advogados e equipe.
-[x] Entrevista pública demonstrativa.
-[x] Perguntas separadas por área jurídica.
-[x] Coleta de nome, idade, profissão e telefone.
-[x] Resumo e cronologia demonstrativos.
-[x] Exclusão de mensagens no chat de teste.
-[x] Layout responsivo inicial para celular.
-[x] Projeto Supabase criado.
-[x] Bucket privado `documentos` criado.
-[x] Tabelas iniciais criadas.
-[x] RLS e políticas iniciais aplicadas.
-[x] SDK do Supabase instalado.
-[x] Cliente Supabase preparado no código.
-[x] Variáveis locais configuradas no `.env.local`.
-[x] Lint e build validados.
-
-O QUE AINDA É SIMULADO
------------------------
-[ ] Login e logout reais.
-[ ] Recuperação de senha.
-[ ] Usuários e perfis reais.
-[ ] Escritórios reais.
-[ ] Casos persistidos no Supabase.
-[ ] Mensagens persistidas no Supabase.
-[ ] Cronologia persistida com timestamps reais.
-[ ] Upload e download real de documentos.
-[ ] IA real.
-[ ] Pagamentos e assinaturas reais.
-[ ] Hospedagem dinâmica para API e painel.
-
-ESTRATÉGIA RECOMENDADA
-----------------------
-Como ainda não existem casos reais, criar primeiro um ambiente de demonstração
-com usuários, escritório e clientes fictícios. Não usar dados reais nessa fase.
-
-PRÓXIMOS PASSOS EM ORDEM
--------------------------
-1. Implementar a tela de login com Supabase Auth.
-2. Proteger todas as rotas `/app` e `/admin`.
-3. Criar contas fictícias de super administrador, advogado e equipe.
-4. Criar o escritório fictício `Escritório Demo`.
-5. Criar casos fictícios de trabalhista, consumidor e família.
-6. Substituir os dados simulados por consultas ao Supabase.
-7. Salvar casos, mensagens e cronologia no banco.
-8. Exibir corretamente o telefone na tela do advogado.
-9. Implementar atribuição de casos e comentários internos.
-10. Implementar upload no bucket privado `documentos`.
-11. Testar isolamento de dados entre dois escritórios.
-12. Testar perfis e permissões diferentes.
-13. Integrar a IA por uma API protegida no servidor.
-14. Publicar a aplicação dinâmica em Vercel, Firebase Hosting ou equivalente.
-15. Configurar domínio `casozero.com.br`.
-16. Integrar planos e pagamentos.
-17. Fazer revisão de segurança, LGPD, backups e monitoramento.
-
-CONTAS FICTÍCIAS SUGERIDAS
---------------------------
-- admin.demo@casozero.test — super_admin
-- advogado.demo@casozero.test — advogado
-- equipe.demo@casozero.test — equipe
-
-Não criar contas com dados de pessoas reais durante os testes.
-
-CRITÉRIOS ANTES DE CASOS REAIS
-------------------------------
-[ ] Login funcionando.
-[ ] Recuperação de senha funcionando.
-[ ] Permissões revisadas.
-[ ] Dois escritórios testados sem mistura de dados.
-[ ] Bucket privado testado.
-[ ] Upload limitado por tipo e tamanho.
-[ ] Cronologia validada.
-[ ] Backup definido.
-[ ] Logs e erros monitorados.
-[ ] Política de privacidade criada.
-[ ] Termos de uso criados.
-[ ] Consentimento do cliente implementado.
-[ ] Ambiente de produção separado do ambiente de teste.
-
-PENDÊNCIAS IMPORTANTES DO RESPONSÁVEL
---------------------------------------
-- Definir e-mail final do administrador geral.
-- Definir nomes e dados do escritório inicial.
-- Definir provedor de IA.
-- Definir planos, preços e limites finais.
-- Definir gateway de pagamento.
-- Definir hospedagem dinâmica.
-- Configurar domínio oficial.
-
-RESULTADO ESPERADO DO PRÓXIMO CICLO
-------------------------------------
-Um usuário fictício conseguirá fazer login, acessar somente o escritório
-autorizado, visualizar casos fictícios, consultar a cronologia, trocar o status
-do caso e anexar um documento privado.
-
-
-DATA DA ATUALIZAÇÃO: 18/09/2026
-
-ENTREGAS RECENTES
------------------
-[x] Menu Agenda publicado.
-[x] Rota estática `/app/agenda/` publicada e testada.
-[x] Workflow Pages corrigido e executando com sucesso na última publicação.
-[x] Erro React #130 do menu corrigido (ícone ausente).
-
-PROBLEMA CONHECIDO
-------------------
-[ ] Remover o risco de hidratação React #418 causado pela combinação de HTML estático antigo com bundles manuais. Em alguns navegadores `/app` ainda pode mostrar “client-side exception”. A correção definitiva é gerar e publicar o output estático completo do Next e atualizar todas as referências de chunks de uma só vez.
-
-ÚLTIMA VALIDAÇÃO
+RESUMO EXECUTIVO
 ----------------
-- `/app/`: dashboard carregou com Agenda e Caixa de entrada corretos.
-- `/app/agenda/`: abriu sem exceção, com data, descrição e número do caso.
-- Workflow do commit `7256f85d`: `success`.
+O CasoZero está em estágio de protótipo navegável e publicado. A experiência
+visual, os fluxos principais e a responsividade inicial foram construídos. A
+próxima fase não é mais visual: é transformar as simulações em dados reais.
 
+JÁ REALIZADO
+------------
+[x] Landing page, vídeo hero, planos e navegação pública.
+[x] Painel profissional e área administrativa.
+[x] Casos, pendências, agenda, cronologia, documentos demonstrativos e Meu link.
+[x] Assinatura com quatro planos e upgrade demonstrativo.
+[x] Configuração do atendimento separada das configurações do usuário.
+[x] Saudação dinâmica e nome do profissional na Visão Geral.
+[x] Supabase criado, SDK instalado e cliente inicial no código.
+[x] Lint e build validados nas últimas alterações.
+
+AINDA NÃO É PRODUÇÃO
+--------------------
+[ ] Os dados principais ainda são mock/local.
+[ ] Os botões de salvar ainda não formam um fluxo único persistente.
+[ ] Supabase Auth, RLS e perfis ainda precisam ser implementados.
+[ ] Storage e documentos ainda não estão em um fluxo seguro completo.
+[ ] Analytics ainda não é alimentado por dados reais.
+[ ] A origem do lead ainda não é coletada na entrevista.
+[ ] IA, cobrança e limites de assinatura ainda não estão integrados.
+
+PRÓXIMA ENTREGA PRIORITÁRIA
+---------------------------
+Implementar a fundação de dados e autenticação:
+
+1. Configurar ambiente Supabase sem expor chaves privadas.
+2. Criar schema e relacionamentos.
+3. Criar políticas RLS.
+4. Criar login, cadastro e recuperação de senha.
+5. Criar o perfil do profissional e do escritório.
+6. Migrar primeiro os casos e mensagens mock para o banco.
+7. Criar o componente/serviço padrão de salvamento:
+   - Salvando…
+   - Salvo com sucesso.
+   - Falha ao salvar.
+   - Recarregar o valor persistido.
+
+DEPOIS DA FUNDAÇÃO
+------------------
+- Persistir agenda, status, documentos e configurações.
+- Adicionar “Como você conheceu o CasoZero?” à entrevista.
+- Calcular Analytics por status, assunto, área, origem e período.
+- Aplicar limites dos planos.
+- Integrar IA por endpoint de servidor.
+- Fazer testes de segurança, mobile e produção.
+
+DECISÃO IMPORTANTE
+------------------
+GitHub Pages continuará servindo a apresentação estática. O painel com
+autenticação, banco, IA e arquivos deverá ser publicado em uma hospedagem que
+execute recursos dinâmicos, mantendo o GitHub Pages como vitrine pública.
