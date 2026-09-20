@@ -1,1 +1,1 @@
-import { Portal } from '@/components/lawyer/portal'; export default function Page(){return <Portal view="link"/>}
+import { MyLinkReal } from '@/components/lawyer/profile-settings'; export default function Page(){return <MyLinkReal/>}
