@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 760" role="img" aria-labelledby="title desc">
+  <title id="title">CasoZero</title>
+  <desc id="desc">Marca vertical CasoZero com símbolo oval e diagonal</desc>
+  <rect width="480" height="760" rx="116" fill="#050505"/>
+  <rect x="148" y="18" width="184" height="724" rx="92" fill="#232323"/>
+  <path d="M148 604 L332 164" fill="none" stroke="#050505" stroke-width="11"/>
+  <text x="240" y="405" text-anchor="middle" dominant-baseline="middle" fill="#f7f7f4" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="300" letter-spacing="-2">CASO</text>
+  <text x="240" y="405" text-anchor="middle" dominant-baseline="middle" fill="#151515" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="300" letter-spacing="-2" dx="94">ZERO</text>
+</svg>
