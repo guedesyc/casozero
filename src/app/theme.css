@@ -55,6 +55,11 @@
 .app-shell>.sidebar nav a:first-child{background:transparent!important}
 .app-shell>.sidebar nav a.active{background:#ebe7df!important}
 .app-shell>.sidebar nav a.active:first-child{background:#ebe7df!important}
+.toolbar{align-items:center!important;background:transparent!important}
+.toolbar .filter{height:42px!important;background:#fff!important;border:1px solid var(--line)!important;border-radius:10px!important;color:#4f4a44!important;box-shadow:0 2px 8px #11100f0a!important}
+.toolbar .filter:first-child{min-width:170px!important}
+.toolbar .filter:last-child{width:290px!important}
+.dashboard-calendar ul{list-style:none;padding:0;margin:13px 0 0}.dashboard-calendar li{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:12px}.dashboard-calendar li b{min-width:52px;color:#111}.dashboard-calendar li span{color:var(--muted)}
 .pricing-header{height:auto!important;min-height:0!important;background:transparent!important;padding:24px max(24px,calc((100vw - 1180px)/2))!important}
 .pricing-back{display:inline-flex;align-items:center;gap:6px;color:#111!important;font-size:12px;font-weight:600}
 .pricing-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
