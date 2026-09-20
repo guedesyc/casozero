@@ -1,4 +1,4 @@
 import type { NextConfig } from 'next';
 const onGithubPages = process.env.GITHUB_ACTIONS === 'true';
-const nextConfig: NextConfig = { output: 'export', images: { unoptimized: true }, basePath: onGithubPages ? '/casozero' : '' };
+const nextConfig: NextConfig = { output: 'export', trailingSlash: true, images: { unoptimized: true }, basePath: onGithubPages ? '/casozero' : '' };
 export default nextConfig;
