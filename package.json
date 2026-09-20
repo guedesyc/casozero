@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/clean-static-before-build.mjs",
     "build": "next build",
     "publish:pages": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish-pages.ps1",
     "start": "next start",
