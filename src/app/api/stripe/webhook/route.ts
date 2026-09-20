@@ -25,9 +25,10 @@ export async function POST(request: Request) {
   const subscriptionId = subscription?.subscription as string | null;
   const customerId = subscription?.customer as string | null;
   const plan = subscription?.metadata?.plan ?? null;
+  const userId = subscription?.metadata?.user_id ?? subscription?.client_reference_id ?? null;
   const status = event.type === 'checkout.session.completed' ? 'active' : event.type.includes('payment_failed') ? 'past_due' : event.type.includes('deleted') ? 'canceled' : 'active';
   if (subscriptionId || customerId) {
-    await supabase.from('subscriptions').upsert({ stripe_customer_id: customerId, stripe_subscription_id: subscriptionId, plan_id: plan, status, updated_at: new Date().toISOString() }, { onConflict: 'stripe_subscription_id' });
+    await supabase.from('subscriptions').upsert({ user_id: userId, stripe_customer_id: customerId, stripe_subscription_id: subscriptionId, plan_id: plan ?? 'unknown', status, updated_at: new Date().toISOString() }, { onConflict: 'stripe_subscription_id' });
   }
   return NextResponse.json({ received: true });
 }
