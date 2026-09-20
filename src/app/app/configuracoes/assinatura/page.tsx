@@ -1,1 +1,1 @@
-import { Portal } from '@/components/lawyer/portal'; export default function Page(){return <Portal view="subscription"/>}
+import SubscriptionUsage from '@/components/lawyer/subscription-usage'; export default function Page(){return <SubscriptionUsage/>}
