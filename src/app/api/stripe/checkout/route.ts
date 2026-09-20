@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { STRIPE_PRICE_IDS, PaidPlanId } from '@/config/stripe';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return NextResponse.json({ error: 'Stripe não configurada no servidor.' }, { status: 503 });
@@ -17,6 +19,7 @@ export async function POST(request: Request) {
     cancel_url: `${origin}/precos?checkout=cancelled`,
     allow_promotion_codes: true,
     billing_address_collection: 'auto',
+    metadata: { plan },
   });
   return NextResponse.json({ url: session.url });
 }
