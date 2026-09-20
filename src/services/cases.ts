@@ -17,6 +17,7 @@ export const casesService = {
  get(id: string) { return this.list().find(c => c.id === id); },
  save(cases: LegalCase[]) { localStorage.setItem(key, JSON.stringify(cases)); },
  updateStatus(id: string, status: CaseStatus) { const cases = this.list().map(c => c.id === id ? {...c,status} : c); this.save(cases); return cases; },
+ update(id: string, values: Partial<LegalCase>) { const cases = this.list().map(c => c.id === id ? {...c, ...values} : c); this.save(cases); return cases; },
   add(item: LegalCase) { const cases=this.list(); const nextNumber=cases.reduce((max,c)=>Math.max(max,c.caseNumber||0),0)+1; const normalized={...item,caseNumber:item.caseNumber||nextNumber,code:`CASO #${String(item.caseNumber||nextNumber).padStart(5,'0')}`}; const next=[normalized,...cases]; this.save(next); return next; },
  clear() { localStorage.removeItem(key); return initialCases; }
 };
