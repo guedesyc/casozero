@@ -26,12 +26,17 @@
 
 /* Apresentação pública: composição clara, sem faixas ou blocos decorativos pesados. */
 .landing-nav{height:84px!important;background:var(--paper)!important;border:0!important;box-shadow:none!important;padding-inline:max(24px,calc((100vw - 1180px)/2))!important}
+.landing-inline-nav{height:auto!important;min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1180px;margin:0 auto;padding:22px 24px!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.landing-wordmark{font-family:Fraunces,serif;font-size:24px;font-weight:600;color:#111!important;letter-spacing:-.04em}
 .landing-logo{width:176px!important;height:58px!important;background-image:url('/casozero/casozero-logo.png'),url('/casozero-logo.png')!important;background-size:1450px auto!important;background-position:center!important;background-repeat:no-repeat!important}
 .landing-logo img,.landing-logo b{display:none!important}
 .landing-links a,.login-link{color:#111!important}.landing-links a:hover,.login-link:hover{color:#67625c!important}
 .landing-nav .primary{background:#111!important;color:#fff!important}
 .landing-hero{min-height:620px!important;padding-top:58px!important;padding-bottom:70px!important}
+.landing-video-hero{max-width:1180px!important;min-height:0!important;height:min(68vh,720px)!important;padding:0 24px 56px!important;display:block!important}
+.landing-video-hero video{display:block;width:100%;height:100%;object-fit:contain;background:#000;border-radius:18px}
 .hero-kicker{background:#eeeae3!important;color:#111!important}
+.hero-kicker{display:none!important}
 .hero-visual{background:transparent!important;border-radius:0!important;height:500px!important;display:block!important;position:relative!important}
 .hero-visual:before{display:none!important}.hero-showcase:after{content:'';position:absolute;inset:7% 7% 10% 9%;border-radius:30px;background:radial-gradient(circle at 50% 35%,#e8e3da 0,#f3f0ea 42%,transparent 70%);z-index:0}
 .showcase-window{position:absolute;z-index:2;left:13%;top:17%;width:68%;height:62%;border:1px solid #d6d1c8;border-radius:18px;background:#fff;box-shadow:0 24px 50px #24211d14;padding:24px;transform:rotate(-3deg);overflow:hidden}
@@ -39,3 +44,4 @@
 .proof-strip{display:none!important}.landing-cta{background:#eeeae3!important;color:#111!important;border:1px solid #ddd8cf}.landing-cta h2,.landing-cta p{color:#111!important}.landing-cta .eyebrow{color:#67625c!important}.landing-footer{background:transparent!important;color:#111!important}.landing-footer .landing-logo{margin-left:0}.landing-footer p{color:#67625c!important}
 .intro-gate{display:flex!important;align-items:center!important;justify-content:center!important;padding:clamp(12px,3vw,34px)!important}.intro-gate video{width:min(100%,1100px)!important;height:min(100%,calc(100vh - 48px))!important;max-height:100vh!important;object-fit:contain!important;background:#000!important;border-radius:8px;display:block}
 @media(max-width:800px){.landing-nav{height:72px!important;padding-inline:18px!important}.landing-logo{width:150px!important;height:48px!important;background-size:1250px auto!important}.landing-links{display:none!important}.landing-hero{padding:54px 20px 55px!important}.hero-copy h1{font-size:clamp(42px,11vw,56px)!important}.hero-visual{height:390px!important;margin-top:16px}.showcase-window{left:7%;top:18%;width:78%;height:58%;padding:18px}.showcase-calendar{right:0;bottom:8%;width:51%}.showcase-note{left:2%;top:7%;font-size:10px}.showcase-note strong{font-size:13px}.landing-cta{margin-inline:20px!important;padding:40px 27px!important}.intro-gate{padding:8px!important}.intro-gate video{width:100%!important;height:auto!important;max-height:calc(100vh - 70px)!important}}
+.landing-video-hero{height:auto!important;padding:0 18px 42px!important}.landing-video-hero video{height:auto;aspect-ratio:16/9;border-radius:12px}.landing-inline-nav{padding-inline:18px!important}.landing-inline-nav .landing-links{display:none}
