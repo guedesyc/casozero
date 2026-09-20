@@ -8,7 +8,18 @@ export const initialLawyers: (Lawyer & { id: string; email: string; phone: strin
 ];
 
 export const lawyerService = {
-  list() { if (typeof window === 'undefined') return initialLawyers; const saved = localStorage.getItem('casozero-admin-lawyers'); return saved ? JSON.parse(saved) : initialLawyers; },
+  list() {
+    if (typeof window === 'undefined') return initialLawyers;
+    try {
+      const saved = window.localStorage.getItem('casozero-admin-lawyers');
+      if (!saved) return initialLawyers;
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : initialLawyers;
+    } catch {
+      window.localStorage.removeItem('casozero-admin-lawyers');
+      return initialLawyers;
+    }
+  },
   save(items: typeof initialLawyers) { localStorage.setItem('casozero-admin-lawyers', JSON.stringify(items)); },
   update(id: string, values: Partial<typeof initialLawyers[number]>) { const next = this.list().map((item: typeof initialLawyers[number]) => item.id === id ? { ...item, ...values } : item); this.save(next); return next; },
   create(values: { name: string; email: string; firm: string; slug?: string }) { const items = this.list(); const base = (values.slug || values.firm || values.name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '').slice(0, 28) || `advogado${items.length + 1}`; const used = new Set(items.map((item: typeof initialLawyers[number]) => item.slug)); let slug = base; let suffix = 2; while (used.has(slug)) slug = `${base}${suffix++}`; const item = { id: `adv-${String(Date.now()).slice(-6)}`, slug, name: values.name || 'Novo advogado', firm: values.firm || 'Novo escritório', city: 'A configurar', areas: ['Cível'] as Lawyer['areas'], profile: 'Ambos', preferences: [], email: values.email, phone: '', status: 'invited' as const, plan: 'Solo', joinedAt: 'Hoje', cases: 0 }; const next = [item, ...items]; this.save(next); return next; },
