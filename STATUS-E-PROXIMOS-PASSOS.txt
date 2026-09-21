@@ -4,9 +4,10 @@ Atualizado em 20/09/2026.
 
 RESUMO EXECUTIVO
 ----------------
-O CasoZero está em estágio de protótipo navegável e publicado. A experiência
-visual, os fluxos principais e a responsividade inicial foram construídos. A
-próxima fase não é mais visual: é transformar as simulações em dados reais.
+O CasoZero está publicado e já possui uma fundação real de autenticação,
+perfis, Stripe e controle inicial por plano. A principal pendência deixou de
+ser a infraestrutura de pagamento e passou a ser a migração dos módulos
+operacionais (casos, mensagens, agenda e Analytics) do mock para o Supabase.
 
 JÁ REALIZADO
 ------------
@@ -16,46 +17,49 @@ JÁ REALIZADO
 [x] Assinatura com quatro planos e upgrade demonstrativo.
 [x] Configuração do atendimento separada das configurações do usuário.
 [x] Saudação dinâmica e nome do profissional na Visão Geral.
-[x] Supabase criado, SDK instalado e cliente inicial no código.
+[x] Supabase criado, SDK instalado e autenticação real no código.
+[x] Stripe sandbox validado com checkout, webhook HTTP 200 e persistência.
+[x] Planos vinculados ao usuário e permissões iniciais aplicadas.
+[x] Link personalizado, QR Code, configurações e fluxo de redefinição de senha.
+[x] Deploy Node na Hostinger corrigido, incluindo 404, 308 do webhook e vídeo.
 [x] Lint e build validados nas últimas alterações.
 
 AINDA NÃO É PRODUÇÃO
 --------------------
 [ ] Os dados principais ainda são mock/local.
 [ ] Os botões de salvar ainda não formam um fluxo único persistente.
-[ ] Supabase Auth, RLS e perfis ainda precisam ser implementados.
+[ ] RLS e perfis precisam ser ampliados para todos os módulos operacionais.
 [ ] Storage e documentos ainda não estão em um fluxo seguro completo.
 [ ] Analytics ainda não é alimentado por dados reais.
 [ ] A origem do lead ainda não é coletada na entrevista.
-[ ] IA, cobrança e limites de assinatura ainda não estão integrados.
+[ ] IA ainda é demonstrativa; cobrança está validada apenas em sandbox.
 
 PRÓXIMA ENTREGA PRIORITÁRIA
 ---------------------------
-Implementar a fundação de dados e autenticação:
+Implementar a persistência operacional:
 
 1. Configurar ambiente Supabase sem expor chaves privadas.
 2. Criar schema e relacionamentos.
 3. Criar políticas RLS.
-4. Criar login, cadastro e recuperação de senha.
-5. Criar o perfil do profissional e do escritório.
-6. Migrar primeiro os casos e mensagens mock para o banco.
-7. Criar o componente/serviço padrão de salvamento:
+4. Criar o perfil do profissional e do escritório.
+5. Migrar primeiro os casos e mensagens mock para o banco.
+6. Criar o componente/serviço padrão de salvamento:
    - Salvando…
    - Salvo com sucesso.
    - Falha ao salvar.
    - Recarregar o valor persistido.
 
-DEPOIS DA FUNDAÇÃO
+DEPOIS DA PERSISTÊNCIA OPERACIONAL
 ------------------
 - Persistir agenda, status, documentos e configurações.
 - Adicionar “Como você conheceu o CasoZero?” à entrevista.
 - Calcular Analytics por status, assunto, área, origem e período.
-- Aplicar limites dos planos.
+- Aplicar limites dos planos também nas APIs e consultas do backend.
 - Integrar IA por endpoint de servidor.
 - Fazer testes de segurança, mobile e produção.
 
 DECISÃO IMPORTANTE
 ------------------
-GitHub Pages continuará servindo a apresentação estática. O painel com
-autenticação, banco, IA e arquivos deverá ser publicado em uma hospedagem que
-execute recursos dinâmicos, mantendo o GitHub Pages como vitrine pública.
+O domínio próprio/Hostinger deve continuar servindo a aplicação dinâmica com
+Node.js, APIs, Supabase e Stripe. O GitHub Pages permanece apenas como vitrine
+estática e ambiente de publicação da apresentação.

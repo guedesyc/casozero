@@ -1,6 +1,6 @@
 PLANO DE CONTINUIDADE — CASOZERO
 ================================
-Atualizado em 20/09/2026.
+Atualizado em 20/09/2026 — após publicação na Hostinger.
 
 OBJETIVO ATUAL
 --------------
@@ -9,7 +9,7 @@ persistência segura, limites por assinatura e Analytics baseado em dados reais.
 
 SITUAÇÃO ATUAL
 --------------
-[x] Landing page publicada no GitHub Pages, com vídeo hero responsivo.
+[x] Landing page publicada no domínio próprio, com vídeo hero corrigido para Hostinger.
 [x] Página de preços com CasoZero, CasoUm, CasoDois e CasoTrês.
 [x] Painel do profissional com casos, pendências, agenda, Meu link, assinatura,
     equipe, Analytics, configuração do atendimento e configurações gerais.
@@ -17,29 +17,33 @@ SITUAÇÃO ATUAL
 [x] Nome do profissional preparado para aparecer na Visão Geral.
 [x] Entrevista pública demonstrativa com dados básicos e telefone.
 [x] Filtros, agenda, cronologia, status e responsividade em modo demonstração.
-[x] Projeto Supabase criado e cliente inicial preparado em `src/lib/supabase.ts`.
-[ ] Autenticação real e perfis de acesso.
+[x] Projeto Supabase conectado, cadastro/login reais e sessão persistente.
+[x] Cadastro confirmado com tela intermediária antes da escolha do plano.
+[x] Stripe em sandbox validado: checkout, webhook HTTP 200 e assinatura no Supabase.
+[x] Assinaturas vinculadas ao `user_id`, com controle inicial de recursos por plano.
+[x] Upgrade com seleção, confirmação e abertura do Checkout Stripe.
+[x] Configurações do profissional, link personalizado, QR Code e redefinição de senha.
+[x] Carregamento global com logo, correção do vídeo no domínio e ajustes mobile iniciais.
 [ ] Casos, mensagens, agenda e configurações persistidos no Supabase.
 [ ] Upload real de documentos no Storage.
 [ ] Fluxo global de salvamento com “Salvando…”, sucesso e erro.
 [ ] Analytics calculado a partir de status, áreas, assuntos e origem dos leads.
 [ ] Pergunta “Como você conheceu o CasoZero?” na entrevista.
 [ ] IA real integrada por endpoint seguro.
-[ ] Assinaturas e pagamentos reais.
+[x] Assinaturas e pagamentos em sandbox.
+[ ] Ativar e validar cobrança em produção.
 
 ORDEM RECOMENDADA
 -----------------
-1. Confirmar as variáveis `NEXT_PUBLIC_SUPABASE_URL` e chave pública no ambiente.
-2. Criar o schema do banco: profiles, offices, cases, messages, agenda_entries,
+1. Criar o schema do banco: profiles, offices, cases, messages, agenda_entries,
    documents, subscriptions e analytics_events.
 3. Criar políticas RLS por usuário, escritório e função.
-4. Implementar login, cadastro, recuperação de senha e sessão persistente.
-5. Substituir os serviços mock por consultas ao Supabase.
+4. Substituir os serviços mock por consultas ao Supabase.
 6. Implementar o salvamento real em todas as telas e feedback visual padronizado.
 7. Conectar documentos ao bucket privado com URLs temporárias.
 8. Adicionar origem do lead à entrevista e registrar a resposta no caso.
 9. Recalcular Analytics com consultas reais e filtros por período.
-10. Aplicar limites e recursos de cada plano.
+10. Aplicar limites e recursos de cada plano também no backend.
 11. Integrar IA somente pelo servidor, protegendo chaves e dados pessoais.
 12. Validar segurança, LGPD, mobile, build e deploy antes de produção.
 
@@ -52,4 +56,6 @@ CRITÉRIO DE CONCLUSÃO DA PRÓXIMA ETAPA
 ---------------------------------------
 Um profissional consegue criar uma conta, configurar seu perfil, receber um
 caso, consultar o histórico, agendar uma ação e ver os dados persistirem após
-sair e entrar novamente no sistema.
+sair e entrar novamente no sistema. Atualmente cadastro, autenticação,
+assinatura e perfil já atendem essa base; casos e agenda ainda dependem do
+Supabase.
