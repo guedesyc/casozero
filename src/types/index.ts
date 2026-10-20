@@ -1,18 +1,116 @@
-export type PracticeArea = 'Trabalhista' | 'Consumidor' | 'Família' | 'Previdenciário' | 'Cível' | 'Empresarial';
-export type CaseStatus = 'new' | 'reviewing' | 'waiting_information' | 'not_a_fit' | 'converted' | 'completed' | 'archived';
-export type Compatibility = 'Alta' | 'Média' | 'Baixa';
-export interface Document { id: string; name: string; type: string; size: string; }
-export interface InterviewMessage { id: string; role: 'assistant' | 'user'; content: string; createdAt: string; }
-export interface LegalCase { id: string; caseNumber?: number; code: string; name: string; age?: string; profession?: string; area: PracticeArea; topics: string[]; status: CaseStatus; compatibility: Compatibility; createdAt: string; summary: string; phone?: string; leadSource?: LeadSource; assignedTo?: string; company?: string; admission?: string; dismissal?: string; salary?: string; schedule?: string; documents: Document[]; missing: string[]; messages: InterviewMessage[]; actionDate?: string; actionDescription?: string; }
-export interface AgendaEntry { id: string; date: string; time: string; description: string; caseNumber: string; caseId?: string; completed?: boolean; }
-export interface Lawyer { slug: string; name: string; firm: string; city: string; areas: PracticeArea[]; profile: string; preferences: string[]; }
-export interface AIInterviewState { step: number; area?: PracticeArea; facts: Record<string, string>; alreadyAsked: string[]; }
-export type Role = 'administrator' | 'lawyer' | 'collaborator';
-export type LeadSource = 'instagram' | 'whatsapp' | 'google' | 'site' | 'qrcode';
-export interface Subscription { planId: string; status: 'trial'|'active'|'paused'; used: number; limit: number; nextBilling?: string; }
-export interface LawFirm { id: string; name: string; slug: string; members: string[]; }
-export interface LawFirmMember { id: string; name: string; email: string; area: PracticeArea; role: Role; status: 'active'|'invited'; assignedCases: number; }
-export interface CaseAssignment { caseId: string; memberId?: string; }
-export interface CaseComment { id: string; author: string; content: string; createdAt: string; }
-export interface CaseActivity { id: string; type: 'created'|'status'|'assignment'|'comment'|'information'|'converted'|'archived'; description: string; createdAt: string; }
+import { ProfessionId } from '@/config/professions';
 
+export type Modality = 'online' | 'presencial' | 'ambos';
+
+/** Janela de atendimento de um dia da semana (0 = domingo). */
+export interface WeeklyWindow { weekday: number; enabled: boolean; start: string; end: string; }
+
+export interface Availability {
+  windows: WeeklyWindow[];
+  /** Duração da triagem em minutos (fatia os horários livres). */
+  triageMinutes: number;
+  /** Duração padrão das sessões de acompanhamento. */
+  sessionMinutes: number;
+  /** Antecedência mínima, em horas, para o paciente pedir uma triagem. */
+  minNoticeHours: number;
+  /** Quantos dias à frente o calendário público mostra. */
+  horizonDays: number;
+  /** Datas sem atendimento (YYYY-MM-DD). */
+  blockedDates: string[];
+}
+
+export interface Professional {
+  slug: string;
+  name: string;
+  profession: ProfessionId;
+  councilNumber?: string;
+  specialties: string[];
+  categories: string[];
+  modality: Modality;
+  city?: string;
+  bio?: string;
+  availability: Availability;
+}
+
+export type RequestStatus =
+  | 'pending'      // paciente pediu, aguardando a profissional
+  | 'confirmed'    // triagem marcada
+  | 'declined'     // profissional recusou o pedido
+  | 'continued'    // triagem feita, segue em acompanhamento
+  | 'not_continued'; // triagem feita, não segue
+
+/** Pedido de triagem feito pelo link público. */
+export interface TriageRequest {
+  id: string;
+  name: string;
+  age: string;
+  phone: string;
+  guardianName?: string;
+  category: string;
+  /** O que a pessoa procura tratar. */
+  concern: string;
+  /** O que ela imagina / espera do acompanhamento. */
+  expectation: string;
+  modality?: Exclude<Modality, 'ambos'>;
+  requestedDate: string;
+  requestedTime: string;
+  /** Data e hora da triagem confirmada (pode ser diferente da pedida). */
+  scheduledDate?: string;
+  scheduledTime?: string;
+  status: RequestStatus;
+  createdAt: string;
+  declineReason?: string;
+  /** Resultado da triagem, quando não segue (motivo/encaminhamento). */
+  outcomeNote?: string;
+  patientId?: string;
+}
+
+export type Frequency = 'weekly' | 'biweekly';
+export interface Recurrence { weekday: number; time: string; frequency: Frequency; startDate: string; }
+
+export type PatientStatus = 'active' | 'paused' | 'discharged';
+
+export interface Patient {
+  id: string;
+  requestId?: string;
+  name: string;
+  age: string;
+  phone: string;
+  guardianName?: string;
+  category: string;
+  concern: string;
+  expectation: string;
+  status: PatientStatus;
+  recurrence?: Recurrence;
+  createdAt: string;
+}
+
+export type AppointmentKind = 'triage' | 'session';
+export type AppointmentStatus = 'scheduled' | 'done' | 'missed' | 'canceled';
+
+export interface Appointment {
+  id: string;
+  kind: AppointmentKind;
+  date: string;
+  time: string;
+  minutes: number;
+  status: AppointmentStatus;
+  requestId?: string;
+  patientId?: string;
+  /** Nome exibido na agenda (paciente ou solicitante). */
+  title: string;
+}
+
+/** Registro da caderneta: uma página por sessão. */
+export interface SessionNote {
+  id: string;
+  patientId: string;
+  appointmentId?: string;
+  /** 0 = triagem; 1, 2, 3… = sessões de acompanhamento. */
+  number: number;
+  date: string;
+  notes: string;
+  /** Resumo curto que alimenta a linha de evolução. */
+  evolution: string;
+  updatedAt: string;
+}

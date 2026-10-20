@@ -1,0 +1,262 @@
+/* CasoZero Saúde: componentes do agendamento, agenda e caderneta. Carregado por último. */
+
+/* ---------- Navegação do painel ---------- */
+.app-shell>.sidebar nav a:first-child{background:transparent!important}
+.app-shell>.sidebar nav a.active{background:#111!important;color:#fff!important}
+.app-shell>.sidebar nav a.active svg{color:#fff}
+.nav-count{background:#b4462f;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:2px}
+.app-shell>.sidebar nav a.nav-public{color:var(--muted)!important}
+.demo-banner{max-width:1240px;margin:0 auto;padding:10px 32px 0;font-size:12px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.demo-banner button{border:0;background:none;text-decoration:underline;color:#111;font-size:12px;padding:0}
+.title-actions{display:flex;gap:8px;align-items:center}
+.title-actions select{border:1px solid var(--line);border-radius:7px;background:#fff;padding:8px 10px;font-size:13px}
+.text-link{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#111;background:none;border:0;padding:0;cursor:pointer}
+.block-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.block-head h2{margin:0!important}
+.block.spaced{margin-top:18px}
+.two-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.two-cols>.block{margin:0}
+.stack{display:grid;gap:16px;align-content:start}
+.stack>.block{margin:0}
+.stack-buttons{display:grid;gap:8px;margin-top:14px}
+.stack-buttons .full{margin-top:0}
+.field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 12px}
+.field>span{display:block}
+.field small{font-weight:400;color:var(--muted);margin-left:4px}
+.button-row{flex-wrap:wrap;margin-top:12px}
+.metrics a.metric{display:block;color:inherit}
+.metrics a.metric:hover{background:#faf9f6!important}
+
+.calendar-head h2::first-letter,.slot-head strong::first-letter,.slot-day::first-letter,.big-date::first-letter,.note-head small::first-letter,.block-head h2::first-letter{text-transform:uppercase}
+
+/* ---------- Badges ---------- */
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px;background:#ece9e3;color:#111;white-space:nowrap}
+.badge-pending,.badge-warn{background:#f6ead0;color:#7a5a12}
+.badge-confirmed,.badge-scheduled{background:#e6edf3;color:#2f5876}
+.badge-continued,.badge-done,.badge-active{background:#e4eee6;color:#2b6739}
+.badge-declined,.badge-not_continued,.badge-missed,.badge-canceled{background:#f3e7e5;color:#8d3f37}
+
+/* ---------- Listas ---------- */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}
+.tabs button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:8px 12px;font-size:13px;color:#333}
+.tabs button.active{background:#111;color:#fff;border-color:#111}
+.tabs b{font-weight:600;opacity:.6;margin-left:3px}
+.toolbar{flex-wrap:wrap;justify-content:space-between;align-items:center}
+.toolbar .tabs{margin:0}
+.toolbar .search{background:#fff;border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:260px}
+.list{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.list-row,.request-row{display:grid;grid-template-columns:34px minmax(0,1.5fr) minmax(0,1fr) auto 16px;gap:14px;align-items:center;padding:13px 18px;border-top:1px solid var(--line);color:inherit}
+.list-row:first-child{border-top:0}
+.list-row:hover,.request-row:hover{background:#faf9f6}
+.list-main strong,.list-main small,.request-row strong,.request-row small{display:block}
+.list-main small,.request-row small{color:var(--muted);font-size:12px;margin-top:2px}
+.list-when{font-size:12px;color:#444;display:flex;gap:5px;align-items:center}
+.empty-list{padding:28px;text-align:center}
+.request-row{grid-template-columns:34px 1fr 16px;padding:11px 0;border-top:1px solid var(--line)}
+.request-row:first-of-type{border-top:0}
+.request-inline{display:block;font-size:13px;padding:10px 12px;background:#f6ead0;border-radius:7px;margin-bottom:8px}
+
+/* ---------- Compromissos ---------- */
+.appt-row{display:grid;grid-template-columns:62px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.appt-row:first-of-type{border-top:0}
+.appt-row.canceled{opacity:.55}
+.appt-time strong,.appt-time small{display:block}
+.appt-time small{font-size:11px;color:var(--muted)}
+.appt-who{display:flex;align-items:center;gap:10px;color:inherit;min-width:0}
+.appt-who strong,.appt-who small{display:block}
+.appt-who small{font-size:12px;color:var(--muted)}
+.appt-actions{display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.appt-actions select{border:1px solid var(--line);border-radius:6px;background:#fff;padding:7px;font-size:12px}
+.appt-actions .secondary:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- Agenda mensal ---------- */
+.calendar{padding:18px!important}
+.calendar-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.calendar-head h2{margin:0;font:600 20px Fraunces,serif}
+.icon-button{border:1px solid var(--line);background:#fff;border-radius:7px;width:34px;height:34px;display:grid;place-items:center}
+.calendar-week,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.calendar-week span{font-size:11px;color:var(--muted);text-align:center;padding:4px 0}
+.calendar-day{min-height:92px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px;text-align:left;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.calendar-day>strong{font-size:12px}
+.calendar-day.today>strong{background:#111;color:#fff;border-radius:10px;padding:1px 6px;align-self:flex-start}
+.calendar-day.selected{border-color:#111;box-shadow:inset 0 0 0 1px #111}
+.calendar-day small{font-size:10px;border-radius:4px;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip-session{background:#ece9e3}
+.chip-triage{background:#e6edf3;color:#2f5876}
+.chip-request{background:#f6ead0;color:#7a5a12}
+.calendar-day small.done{opacity:.6}
+.calendar-day small.missed{text-decoration:line-through}
+.calendar-day .more{color:var(--muted)}
+.calendar-legend{display:flex;gap:8px;margin-top:12px;font-size:11px}
+.calendar-legend span{padding:3px 7px;border-radius:4px}
+
+/* ---------- Seletor de horário (link público e remarcação) ---------- */
+.slot-picker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin:6px 0 10px}
+.slot-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.slot-head strong{font-size:14px;display:inline-block}
+.slot-week,.slot-days{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.slot-week span{font-size:10px;color:var(--muted)}
+.slot-days button{aspect-ratio:1;border:0;border-radius:50%;background:#ece9e3;font-size:13px;font-weight:700;color:#111}
+.slot-days button:disabled{background:none;color:#bbb6ae;font-weight:400;cursor:default}
+.slot-days button.today{box-shadow:inset 0 0 0 1px #111}
+.slot-days button.selected{background:#111;color:#fff}
+.slot-day{font-size:13px;font-weight:700;margin:4px 0 10px}
+.slot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:250px;overflow:auto}
+.slot-grid button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:9px 0;font-size:13px}
+.slot-grid button.selected{background:#111;color:#fff;border-color:#111}
+
+/* ---------- Chips e profissão ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:#fff;border-radius:16px;padding:7px 11px;font-size:12px;font-weight:500;color:#333}
+.chip.on{background:#111;border-color:#111;color:#fff}
+.chip button{border:0;background:none;color:inherit;padding:0;display:grid}
+.chip-add{display:inline-flex;align-items:center;border:1px dashed #c9c4bb;border-radius:16px;padding:0 4px 0 10px}
+.chip-add input{border:0!important;outline:0;width:110px;padding:6px 0!important;margin:0!important;font-size:12px;background:transparent!important}
+.chip-add button{border:0;background:none;display:grid;padding:4px}
+.profession-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:8px}
+.profession-grid button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px;text-align:left}
+.profession-grid button strong,.profession-grid button small{display:block}
+.profession-grid button strong{font-size:13px}
+.profession-grid button small{font-size:11px;color:var(--muted);font-weight:400;margin:2px 0 0}
+.profession-grid button.on{border-color:#111;box-shadow:inset 0 0 0 1px #111;background:#faf9f6}
+.signup-card{width:min(100%,720px)!important}
+
+/* ---------- Link público ---------- */
+.booking .public-card{width:min(100%,680px)}
+.booking h1{font:600 30px/1.15 Fraunces,serif;letter-spacing:-.02em;margin:8px 0 12px}
+.booking .lead{font-size:15px;margin-bottom:16px}
+.booking .field{font-size:13px}
+.booking .field textarea{height:auto;font-size:14px}
+.booking .field input{font-size:14px}
+.booking .primary{width:auto}
+.booking .button-row{justify-content:space-between;margin-top:18px}
+.booking .segmented button{font-size:13px}
+.pro-header{display:flex;gap:12px;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.pro-avatar{width:48px;height:48px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
+.pro-header strong,.pro-header span,.pro-header small{display:block}
+.pro-header span{font-size:13px;color:#333;margin-top:2px}
+.pro-header small{font-size:12px;color:var(--muted);margin-top:3px}
+.pro-header small svg{vertical-align:-2px}
+.stepper{display:flex;gap:4px;list-style:none;padding:0;margin:0 0 18px;font-size:11px;color:var(--muted)}
+.stepper li{flex:1;display:flex;gap:6px;align-items:center;border-top:3px solid var(--line);padding-top:7px}
+.stepper li b{font-weight:700}
+.stepper li.past{border-color:#8f8a82}
+.stepper li.current{border-color:#111;color:#111;font-weight:700}
+.review-list{margin:0 0 18px;display:grid;gap:10px}
+.review-list div{border-top:1px solid var(--line);padding-top:10px}
+.review-list dt{font-size:11px;color:var(--muted)}
+.review-list dd{margin:3px 0 0;font-size:14px;line-height:1.45}
+.completion .checks{display:inline-block;text-align:left}
+
+/* ---------- Detalhes ---------- */
+.quote{margin:0;font-size:15px;line-height:1.6;white-space:pre-wrap}
+.big-date{font-size:15px;line-height:1.5;margin:0}
+.big-date b{font:600 26px Fraunces,serif}
+dl.facts{margin:0}
+dl.facts dt{font-size:11px;color:var(--muted)}
+dl.facts dd{margin:3px 0 0;font-size:14px;font-weight:600}
+.patient-summary{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:18px}
+.patient-summary>div{padding:14px 16px;display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.patient-summary>div+div{border-left:1px solid var(--line)}
+.patient-summary span{font-size:11px;color:var(--muted)}
+.patient-summary strong{font-size:14px}
+
+/* ---------- Caderneta ---------- */
+.notebook{display:grid;gap:8px}
+.notice-row{display:flex;gap:10px;align-items:center;background:#f6ead0;border-radius:8px;padding:10px 14px;font-size:13px;flex-wrap:wrap}
+.notice-row span{flex:1}
+.note-page{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.note-page.open{border-color:#111}
+.note-head{width:100%;display:grid;grid-template-columns:38px 170px minmax(0,1fr) 16px;gap:14px;align-items:center;padding:12px 16px;background:none;border:0;text-align:left;color:inherit}
+.note-head strong,.note-head small{display:block}
+.note-head small{font-size:11px;color:var(--muted)}
+.note-number{width:34px;height:34px;border-radius:50%;background:#ece9e3;display:grid;place-items:center;font:600 14px Fraunces,serif}
+.note-page.open .note-number{background:#111;color:#fff}
+.note-preview{font-size:13px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note-page.open .note-head>svg{transform:rotate(90deg)}
+.note-body{padding:0 16px 16px;border-top:1px solid var(--line)}
+.note-body textarea{height:auto!important;font-size:14px!important;line-height:1.6!important}
+.note-body input{font-size:14px!important}
+.note-actions{display:flex;gap:10px;align-items:center}
+
+/* ---------- Evolução ---------- */
+.inline-check{display:flex;gap:6px;align-items:center;font-size:12px}
+.evo-timeline{list-style:none;margin:0;padding:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 18px 4px}
+.evo-timeline li{display:grid;grid-template-columns:30px 1fr;gap:14px;position:relative;padding-bottom:16px}
+.evo-timeline li:not(:last-child):after{content:'';position:absolute;left:14px;top:30px;bottom:0;width:1px;background:var(--line)}
+.timeline-dot{width:30px;height:30px;border-radius:50%;background:#ece9e3;display:grid;place-items:center;font:600 12px Fraunces,serif}
+.evo-timeline small{font-size:11px;color:var(--muted)}
+.evo-timeline strong{display:block;font-size:14px;font-weight:600;margin-top:2px}
+.evo-timeline p{margin:6px 0 0;font-size:13px;line-height:1.55;color:#444;white-space:pre-wrap}
+.print-only{display:none}
+@media print{
+  .sidebar,.demo-banner,.page-title .title-actions,.patient-summary,.tabs,.no-print,.back,.navigation-loader{display:none!important}
+  .print-only{display:block}
+  .evo-timeline{border:0;padding:0}
+  .page{padding:0!important}
+}
+
+/* ---------- Disponibilidade ---------- */
+.week-row{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding:9px 0}
+.week-row:first-child{border-top:0}
+.week-row .switch{border:0;padding:0;gap:10px;justify-content:flex-start;cursor:pointer;min-width:120px}
+.week-row .switch span{order:2}
+.week-row.off .switch span{color:var(--muted)}
+.week-times{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.week-times input{border:1px solid var(--line);border-radius:6px;padding:6px;font-size:13px}
+.inline-form{display:flex;gap:8px;align-items:center;margin-top:6px}
+.inline-form input{flex:1;margin:0!important;border:1px solid var(--line);border-radius:6px;padding:8px}
+
+/* ---------- Link e assinatura ---------- */
+.link-big{font:600 20px Fraunces,serif;word-break:break-all;margin:0}
+.qr{background:#fff;padding:8px;display:inline-block;margin-bottom:10px}
+.link-list>div{display:grid;grid-template-columns:170px minmax(0,1fr) auto;gap:10px;align-items:center;border-top:1px solid var(--line);padding:8px 0;font-size:13px}
+.link-list code{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.big-number{font:600 30px Fraunces,serif;margin:0 0 6px}
+.big-number small{font:400 13px 'DM Sans',sans-serif;color:var(--muted)}
+.usage-bar{height:8px;background:#ece9e3;border-radius:4px;overflow:hidden}
+.usage-bar i{display:block;height:100%;background:#111}
+.plan-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-bottom:12px}
+.plan-options button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:12px;text-align:left}
+.plan-options button.on{border-color:#111;box-shadow:inset 0 0 0 1px #111}
+.plan-options strong,.plan-options span,.plan-options small{display:block}
+.plan-options span{font-size:13px;margin-top:3px}
+.plan-options small{font-size:11px;color:var(--muted);margin-top:4px}
+.pricing-grid{grid-template-columns:repeat(4,1fr)!important}
+
+/* ---------- Modal ---------- */
+.modal{position:fixed;inset:0;background:#0007;display:grid;place-items:center;padding:16px;z-index:50}
+.modal-card{position:relative;background:#fff;border-radius:12px;padding:24px;width:min(100%,620px);max-height:calc(100vh - 32px);overflow:auto}
+.modal-card h2{margin:0 0 10px;font:600 22px Fraunces,serif}
+.modal-close{position:absolute;right:12px;top:12px;border:0;background:none}
+
+/* ---------- Responsivo ---------- */
+@media(max-width:900px){
+  .two-cols,.detail-grid{grid-template-columns:1fr}
+  .pricing-grid{grid-template-columns:1fr 1fr!important}
+  .patient-summary{grid-template-columns:1fr 1fr}
+  .patient-summary>div:nth-child(3){border-left:0}
+  .patient-summary>div:nth-child(n+3){border-top:1px solid var(--line)}
+}
+@media(max-width:650px){
+  .demo-banner{padding:10px 18px 0}
+  .page-title{flex-direction:column;gap:12px}
+  .list-row{grid-template-columns:34px minmax(0,1fr) auto;padding:12px}
+  .list-row>.list-when,.list-row>svg{display:none}
+  .appt-row{grid-template-columns:52px minmax(0,1fr) auto}
+  .appt-actions{grid-column:1 / -1;justify-content:flex-start}
+  .calendar{padding:10px!important}
+  .calendar-day{min-height:48px;padding:4px}
+  .calendar-day small{font-size:0;padding:0;height:5px;border-radius:3px}
+  .calendar-day .more,.calendar-legend{font-size:10px}
+  .slot-picker{grid-template-columns:1fr}
+  .note-head{grid-template-columns:34px minmax(0,1fr) 16px}
+  .note-preview{display:none}
+  .link-list>div{grid-template-columns:1fr auto}
+  .link-list code{grid-column:1 / -1;grid-row:2}
+  .pricing-grid{grid-template-columns:1fr!important}
+  .toolbar .search{width:100%}
+  .booking .button-row{flex-direction:column-reverse}
+  .booking .button-row button{width:100%}
+  .booking h1{font-size:25px}
+}
