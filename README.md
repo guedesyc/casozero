@@ -7,11 +7,14 @@ Este projeto nasceu do CasoZero jurídico (`guedesyc/casozero`, guardado aqui co
 ## Fluxo
 
 1. **Cadastro.** O profissional escolhe a profissão, a abordagem ou especialidade (ex.: Psicologia → Psicanálise) e as demandas que atende (ex.: Família, Relacionamento, Luto). O catálogo fica em `src/config/professions.ts`.
-2. **Link público** (`/<slug>`, ou `/<slug>/<demanda>` para abrir já com o assunto escolhido). O paciente conta o que procura tratar e o que espera do acompanhamento, informa nome, idade e telefone (e o nome do responsável, se for menor de idade) e escolhe a data da triagem num calendário com os horários livres.
-3. **Solicitações.** A profissional confirma o horário pedido, marca outro ou recusa. Um botão abre o WhatsApp com a mensagem de confirmação pronta.
-4. **Resultado da triagem.** As anotações viram a página “Triagem” da caderneta. Se o atendimento continua, a profissional define o horário fixo (dia, hora, semanal ou quinzenal) e as sessões dos próximos 90 dias entram na agenda, renovadas automaticamente.
-5. **Caderneta.** Uma página por sessão (Sessão 1, Sessão 15…), com anotações livres e uma linha de evolução. Sessões que já passaram e ainda não têm registro aparecem destacadas.
-6. **Evolução.** Linha do tempo com o que foi escrito em todas as sessões, com busca e impressão.
+2. **Página pública** (`/<slug>`). Foto, capa, descrição, biografia, serviços e as demandas atendidas, com o botão **Marcar consulta!**.
+3. **Pedido de triagem** (`/<slug>/agendar`, ou `/<slug>/agendar/<demanda>` para abrir já com o assunto escolhido). As etapas podem ser percorridas livremente; só o envio exige nome, telefone, horário e consentimento. O paciente conta o que procura tratar e o que espera do acompanhamento, informa nome, idade e telefone (e o nome do responsável, se for menor de idade) e escolhe a data da triagem num calendário com os horários livres.
+4. **Solicitações.** A profissional confirma o horário pedido, marca outro ou recusa. Um botão abre o WhatsApp com a mensagem de confirmação pronta.
+5. **Resultado da triagem.** As anotações viram a página “Triagem” da caderneta. Se o atendimento continua, a profissional define o horário fixo (dia, hora, semanal ou quinzenal) e as sessões dos próximos 90 dias entram na agenda, renovadas automaticamente.
+6. **Caderneta.** Uma página por sessão (Sessão 1, Sessão 15…), com anotações livres e uma linha de evolução. Sessões que já passaram e ainda não têm registro aparecem destacadas.
+7. **Evolução.** Linha do tempo com o que foi escrito em todas as sessões, com busca e impressão.
+
+Nenhuma marcação se sobrepõe a outra: confirmar ou remarcar triagem, sessão avulsa, horário fixo e o próprio pedido do paciente passam por `findConflict` (`src/services/scheduling.ts`), que também respeita os bloqueios da disponibilidade (dia inteiro ou intervalo de horas).
 
 ## Rotas
 
@@ -21,10 +24,25 @@ Este projeto nasceu do CasoZero jurídico (`guedesyc/casozero`, guardado aqui co
 | `/precos` planos | `/app/solicitacoes` pedidos de triagem |
 | `/cadastro` cadastro em 2 etapas | `/app/agenda` calendário |
 | `/login` | `/app/pacientes` lista, caderneta e evolução |
-| `/<slug>` link do profissional | `/app/disponibilidade` horários, durações, folgas |
+| `/<slug>` página do profissional | `/app/disponibilidade` horários, durações, bloqueios |
+| `/<slug>/agendar` pedido de triagem | `/app/pagina` foto, capa, serviços, biografia e textos do agendamento |
 | | `/app/perfil` profissão, demandas, apresentação |
 | | `/app/meu-link` link, QR Code e links por demanda |
+| | `/app/equipe` equipe da clínica e visão da secretária (plano Clínica) |
 | | `/app/configuracoes/assinatura` plano e uso |
+| | `/app/configuracoes` acesso, avisos, segurança e dados (fictícios no modo demonstração) |
+
+## Planos
+
+Todos os recursos estão em todos os planos.
+
+- **Grátis:** até 5 pacientes no total. Dar alta ou pausar não libera vaga.
+- **Profissional:** sem limite.
+- **Clínica:** cobrado por profissional, com agenda compartilhada e secretária que vê só a agenda, nunca a caderneta.
+
+No modo demonstração a troca de plano é imediata, na tela de Assinatura.
+
+Na Stripe, os produtos “CasoZero Profissional” (R$ 49,90/mês) e “CasoZero Clínica” (R$ 39,90/mês por profissional) estão criados na área de teste. Os IDs desses preços ficam como padrão em `src/config/stripe.ts`. Para cobrar de verdade, crie os mesmos produtos na conta de produção e informe os IDs em `STRIPE_PRICE_PROFISSIONAL` e `STRIPE_PRICE_CLINICA`. O webhook trata `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` e `invoice.payment_failed`.
 
 ## Como executar
 
@@ -42,7 +60,7 @@ Com as variáveis de `.env.example` preenchidas, cadastro, login e checkout usam
 ```
 src/
   config/professions.ts   catálogo de profissões, abordagens e demandas
-  config/plans.ts         planos (limite = novas triagens por mês)
+  config/plans.ts         planos: Grátis (até 5 pacientes), Profissional (sem limite), Clínica (equipe)
   services/clinic.ts      estado e operações (pedido, confirmação, triagem, recorrência, caderneta)
   services/scheduling.ts  horários livres e datas recorrentes
   components/public/      link público

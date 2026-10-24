@@ -1,11 +1,27 @@
-export type PlanId = 'caso_zero' | 'caso_um' | 'caso_dois' | 'caso_tres';
-export interface Plan { id: PlanId; name: string; price: number; maxProfessionals: number; monthlyTriages: number; description: string; items: string[]; featured?: boolean; }
+export type PlanId = 'gratis' | 'profissional' | 'clinica';
+export interface Plan {
+  id: PlanId;
+  name: string;
+  /** Preço mensal; na Clínica é por profissional. */
+  price: number;
+  perProfessional?: boolean;
+  /** Total de pacientes cadastrados; alta ou pausa não liberam vaga (undefined = sem limite). */
+  maxPatients?: number;
+  /** Agenda compartilhada e equipe com secretária. */
+  team: boolean;
+  description: string;
+  items: string[];
+  featured?: boolean;
+}
 
-/** Limite cobrado = novas triagens recebidas pelo link no mês. Pacientes em acompanhamento não contam. */
+/** Todos os recursos estão em todos os planos; o Grátis só limita o total de pacientes. */
 export const PLANS: Record<PlanId, Plan> = {
-  caso_zero: { id: 'caso_zero', name: 'CasoZero', price: 0, maxProfessionals: 1, monthlyTriages: 5, description: 'Para começar.', items: ['1 profissional', '5 triagens por mês', 'Link com agendamento', 'Agenda e pacientes', 'Caderneta por sessão'] },
-  caso_um: { id: 'caso_um', name: 'CasoUm', price: 69.90, maxProfessionals: 1, monthlyTriages: 20, description: 'Para organizar a agenda de quem está crescendo.', items: ['1 profissional', '20 triagens por mês', 'Link com agendamento', 'Agenda e pacientes', 'Caderneta e evolução'] },
-  caso_dois: { id: 'caso_dois', name: 'CasoDois', price: 119.90, maxProfessionals: 1, monthlyTriages: 100, description: 'Para uma rotina cheia, sem triagem perdida.', items: ['1 profissional', '100 triagens por mês', 'Link com agendamento', 'Agenda e pacientes', 'Caderneta e evolução', 'Links por demanda'], featured: true },
-  caso_tres: { id: 'caso_tres', name: 'CasoTrês', price: 299.90, maxProfessionals: 10, monthlyTriages: 300, description: 'Para clínicas e consultórios compartilhados.', items: ['Até 10 profissionais', '300 triagens por mês', 'Tudo do CasoDois', 'Agenda por profissional'] },
+  gratis: { id: 'gratis', name: 'Grátis', price: 0, maxPatients: 5, team: false, description: 'Tudo liberado para até 5 pacientes.', items: ['Até 5 pacientes', 'Página pública e agendamento', 'Agenda e horários fixos', 'Caderneta e evolução', 'Todos os recursos liberados'] },
+  profissional: { id: 'profissional', name: 'Profissional', price: 49.90, team: false, description: 'Para quem atende por conta própria, sem limite nenhum.', items: ['Pacientes ilimitados', 'Página pública e agendamento', 'Agenda e horários fixos', 'Caderneta e evolução', 'Todos os recursos liberados'], featured: true },
+  clinica: { id: 'clinica', name: 'Clínica', price: 39.90, perProfessional: true, team: true, description: 'Para consultórios com mais de um profissional.', items: ['Tudo do Profissional, para cada profissional', 'Agenda compartilhada', 'Secretária com acesso só à agenda', 'A caderneta continua visível só para cada profissional'] },
 };
+
+export const LEGACY_PLAN_IDS: Record<string, PlanId> = { caso_zero: 'gratis', caso_um: 'profissional', caso_dois: 'profissional', caso_tres: 'clinica' };
+export const toPlanId = (value?: string | null): PlanId | undefined => !value ? undefined : value in PLANS ? value as PlanId : LEGACY_PLAN_IDS[value];
 export const formatBRL = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export const priceLabel = (plan: Plan) => plan.price === 0 ? 'Grátis' : `${formatBRL(plan.price)}/mês${plan.perProfessional ? ' por profissional' : ''}`;

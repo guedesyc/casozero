@@ -15,9 +15,14 @@ export interface Availability {
   minNoticeHours: number;
   /** Quantos dias à frente o calendário público mostra. */
   horizonDays: number;
-  /** Datas sem atendimento (YYYY-MM-DD). */
-  blockedDates: string[];
+  /** Folgas e bloqueios: dia inteiro ou só um intervalo de horas. */
+  blocks: TimeBlock[];
 }
+
+export interface TimeBlock { id: string; date: string; allDay: boolean; start: string; end: string; reason?: string; }
+
+/** Serviço exibido na página pública do profissional. */
+export interface Service { id: string; name: string; description?: string; minutes?: number; price?: string; }
 
 export interface Professional {
   slug: string;
@@ -28,8 +33,29 @@ export interface Professional {
   categories: string[];
   modality: Modality;
   city?: string;
+  /** Foto e capa como data URL (reduzidas no navegador antes de salvar). */
+  photo?: string;
+  cover?: string;
+  /** Frase curta abaixo do nome na página pública. */
+  headline?: string;
+  /** Biografia longa da página pública. */
   bio?: string;
+  services: Service[];
+  /** Textos da primeira etapa do pedido de triagem. */
+  bookingTitle: string;
+  bookingIntro: string;
   availability: Availability;
+}
+
+/** Preferências da conta (fictícias até a integração com o Supabase). */
+export interface AccountSettings {
+  email: string;
+  phone: string;
+  notifyNewRequest: boolean;
+  notifyDailyAgenda: boolean;
+  remindPatients: boolean;
+  reminderHours: number;
+  twoFactor: boolean;
 }
 
 export type RequestStatus =
@@ -114,3 +140,18 @@ export interface SessionNote {
   evolution: string;
   updatedAt: string;
 }
+
+export type TeamRole = 'professional' | 'secretary';
+
+/** Pessoa da clínica (plano Clínica). A secretária vê só a agenda, nunca a caderneta. */
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: TeamRole;
+  profession?: ProfessionId;
+  status: 'active' | 'invited';
+}
+
+/** Compromisso de outro profissional da clínica, exibido na agenda compartilhada. */
+export interface TeamAppointment { id: string; memberId: string; date: string; time: string; minutes: number; title: string; kind: AppointmentKind; }

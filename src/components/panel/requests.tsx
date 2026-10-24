@@ -7,7 +7,7 @@ import { ClinicData, completeTriage, confirmRequest, declineRequest, useClinic }
 import { availableDates, freeSlots, isPast } from '@/services/scheduling';
 import { Slot, SlotPicker } from '@/components/ui/slot-picker';
 import { Frequency, RequestStatus, TriageRequest } from '@/types';
-import { Badge, Block, initials, PageTitle, REQUEST_LABELS } from './shell';
+import { Badge, Block, FormError, initials, PageTitle, REQUEST_LABELS } from './shell';
 
 type Update = ReturnType<typeof useClinic>['update'];
 const TABS: { key: string; label: string; match: RequestStatus[] }[] = [
@@ -40,6 +40,7 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
   const [mode, setMode] = useState<'none' | 'reschedule' | 'decline' | 'outcome'>('none');
   const [reason, setReason] = useState('');
   const [slot, setSlot] = useState<Slot>();
+  const [error, setError] = useState('');
   const others = useMemo(() => data.requests.filter(r => r.id !== id), [data.requests, id]);
   const appointmentsWithoutThis = useMemo(() => data.appointments.filter(a => a.requestId !== id), [data.appointments, id]);
   const dates = useMemo(() => availableDates(data.professional, appointmentsWithoutThis, others), [data.professional, appointmentsWithoutThis, others]);
@@ -70,15 +71,16 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
         <Block title={request.status === 'pending' ? 'Horário pedido' : 'Triagem'}>
           <p className="big-date">{formatLong(date)}<br /><b>{time}</b> · {data.professional.availability.triageMinutes} min</p>
           {request.status === 'pending' && <div className="stack-buttons">
-            <button className="primary full" onClick={() => update(d => confirmRequest(d, request.id, request.requestedDate, request.requestedTime))}><CalendarCheck size={16} /> Confirmar este horário</button>
-            <button className="secondary full" onClick={() => setMode('reschedule')}><CalendarClock size={16} /> Marcar em outro horário</button>
+            <button className="primary full" onClick={() => setError(update(d => confirmRequest(d, request.id, request.requestedDate, request.requestedTime)).error ?? '')}><CalendarCheck size={16} /> Confirmar este horário</button>
+            <button className="secondary full" onClick={() => { setError(''); setMode('reschedule'); }}><CalendarClock size={16} /> Marcar em outro horário</button>
             <button className="ghost-danger full" onClick={() => setMode('decline')}>Recusar pedido</button>
           </div>}
           {request.status === 'confirmed' && <div className="stack-buttons">
             <a className="secondary full" href={whatsapp(request.phone, confirmText)} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Avisar pelo WhatsApp</a>
             {triageHappened ? <button className="primary full" onClick={() => setMode('outcome')}><ClipboardCheck size={16} /> Registrar resultado da triagem</button>
-              : <><button className="secondary full" onClick={() => setMode('reschedule')}><CalendarClock size={16} /> Remarcar</button><button className="primary full" onClick={() => setMode('outcome')}><ClipboardCheck size={16} /> Registrar resultado</button></>}
+              : <><button className="secondary full" onClick={() => { setError(''); setMode('reschedule'); }}><CalendarClock size={16} /> Remarcar</button><button className="primary full" onClick={() => setMode('outcome')}><ClipboardCheck size={16} /> Registrar resultado</button></>}
           </div>}
+          <FormError message={mode === 'none' ? error : ''} />
           {patient && <Link className="secondary full" href={`/app/pacientes/detalhe/?id=${patient.id}`}>Abrir paciente</Link>}
         </Block>
       </aside>
@@ -87,7 +89,8 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
     {mode === 'reschedule' && <Dialog title="Escolher outro horário" close={() => setMode('none')}>
       <p className="muted">Mostrando seus horários livres para triagem. Combine com {first} antes de confirmar.</p>
       <SlotPicker available={dates} slotsFor={d => freeSlots(data.professional, appointmentsWithoutThis, others, d, new Date(0))} value={slot} onChange={setSlot} />
-      <button className="primary full" disabled={!slot} onClick={() => { update(d => confirmRequest(d, request.id, slot!.date, slot!.time)); setMode('none'); }}>Confirmar {slot && `${formatDayMonth(slot.date)}, ${slot.time}`}</button>
+      <button className="primary full" disabled={!slot} onClick={() => { const r = update(d => confirmRequest(d, request.id, slot!.date, slot!.time)); setError(r.error ?? ''); if (!r.error) setMode('none'); }}>Confirmar {slot && `${formatDayMonth(slot.date)}, ${slot.time}`}</button>
+      <FormError message={error} />
     </Dialog>}
     {mode === 'decline' && <Dialog title="Recusar pedido" close={() => setMode('none')}>
       <label className="field"><span>Motivo ou encaminhamento <small>Fica só no seu registro</small></span><textarea rows={3} value={reason} onChange={e => setReason(e.target.value)} placeholder="Ex.: fora da minha área; encaminhado para…" /></label>
@@ -105,9 +108,11 @@ function OutcomeDialog({ request, update, close }: { request: TriageRequest; upd
   const [time, setTime] = useState(request.scheduledTime ?? '09:00');
   const [frequency, setFrequency] = useState<Frequency>('weekly');
   const [startDate, setStartDate] = useState(addDays(base, 7));
+  const [error, setError] = useState('');
   function save() {
-    const patient = update(d => completeTriage(d, request.id, { continues: Boolean(continues), note, recurrence: continues ? { weekday, time, frequency, startDate } : undefined }));
-    if (patient) window.location.href = `/app/pacientes/detalhe/?id=${patient.id}`; else close();
+    const result = update(d => completeTriage(d, request.id, { continues: Boolean(continues), note, recurrence: continues ? { weekday, time, frequency, startDate } : undefined }));
+    if (result.error) { setError(result.error); return; }
+    if (result.value) window.location.href = `/app/pacientes/detalhe/?id=${result.value.id}`; else close();
   }
   return <Dialog title="Resultado da triagem" close={close}>
     <label className="field"><span>Anotações da triagem <small>Vão para a caderneta como “Triagem”</small></span><textarea rows={4} value={note} onChange={e => setNote(e.target.value)} placeholder="Queixa principal, impressões, combinados…" /></label>
@@ -124,6 +129,7 @@ function OutcomeDialog({ request, update, close }: { request: TriageRequest; upd
       </div>
     </div>}
     <button className="primary full" disabled={continues === undefined} onClick={save}>{continues ? 'Criar paciente e lançar sessões' : 'Encerrar solicitação'}</button>
+    <FormError message={error} />
   </Dialog>;
 }
 

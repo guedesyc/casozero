@@ -1,33 +1,50 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { ArrowRight, Check, Copy, Download, ExternalLink, Loader2, X } from 'lucide-react';
+import Link from 'next/link';
+import { ChangeEvent, useEffect, useState } from 'react';
+import { ArrowRight, Check, Copy, Download, ExternalLink, Eye, ImagePlus, Loader2, LogOut, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { PROFESSIONS } from '@/config/professions';
-import { PLANS, PlanId, formatBRL } from '@/config/plans';
+import { PROFESSION_LIST, PROFESSIONS, ProfessionId } from '@/config/professions';
+import { PLANS, PlanId, formatBRL, priceLabel, toPlanId } from '@/config/plans';
+import { MIN_CLINIC_SEATS } from '@/config/stripe';
 import { formatShort, iso, today, WEEKDAYS } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
-import { ClinicData, saveProfessional, slugify, useClinic } from '@/services/clinic';
+import { ClinicData, resetClinic, saveAccount, saveProfessional, saveTeam, setPlan, setViewAs, slugify, slugifyTopic, uid, useClinic } from '@/services/clinic';
 import { ProfessionPicker } from '@/components/ui/profession-picker';
-import { Availability, Modality, Professional } from '@/types';
-import { Block, PageTitle } from './shell';
+import { Avatar } from '@/components/public/profile';
+import { AccountSettings, Availability, Modality, Professional, Service, TeamMember, TeamRole, TimeBlock } from '@/types';
+import { Block, FormError, PageTitle } from './shell';
 
 type Update = ReturnType<typeof useClinic>['update'];
 
-function SaveButton({ dirty, onSave }: { dirty: boolean; onSave: () => void }) {
-  const [saved, setSaved] = useState(false);
-  return <button className="primary small" disabled={!dirty && !saved} onClick={() => { onSave(); setSaved(true); setTimeout(() => setSaved(false), 1800); }}>{saved ? <><Check size={14} /> Salvo</> : 'Salvar alterações'}</button>;
+/** Salva e mostra “Salvo” ou o erro devolvido pela operação. */
+function SaveButton({ dirty, onSave }: { dirty: boolean; onSave: () => string | void }) {
+  const [state, setState] = useState<'idle' | 'saved'>('idle');
+  const [error, setError] = useState('');
+  return <span className="save-wrap">
+    <button className="primary small" disabled={!dirty && state !== 'saved'} onClick={() => { const err = onSave(); if (err) { setError(err); return; } setError(''); setState('saved'); setTimeout(() => setState('idle'), 1800); }}>{state === 'saved' ? <><Check size={14} /> Salvo</> : 'Salvar alterações'}</button>
+    {error && <small className="form-error inline">{error}</small>}
+  </span>;
 }
+const saveWith = (update: Update, change: (d: ClinicData) => void) => () => { const result = update(d => { change(d); return {} as { error?: string }; }); return result.error; };
+
+/* ------------------------------------------------------------------ */
+/* Disponibilidade                                                     */
+/* ------------------------------------------------------------------ */
 
 export function AvailabilityPage({ data, update }: { data: ClinicData; update: Update }) {
   const [value, setValue] = useState<Availability>(data.professional.availability);
-  const [block, setBlock] = useState(today());
   const dirty = JSON.stringify(value) !== JSON.stringify(data.professional.availability);
   const setWindow = (weekday: number, patch: Partial<Availability['windows'][number]>) => setValue({ ...value, windows: value.windows.map(w => w.weekday === weekday ? { ...w, ...patch } : w) });
+  const setBlock = (id: string, patch: Partial<TimeBlock>) => setValue({ ...value, blocks: value.blocks.map(b => b.id === id ? { ...b, ...patch } : b) });
+  const addBlock = () => setValue({ ...value, blocks: [...value.blocks, { id: uid(), date: today(), allDay: false, start: '12:00', end: '14:00' }] });
   const ordered = [1, 2, 3, 4, 5, 6, 0].map(i => value.windows.find(w => w.weekday === i)!);
+  const upcoming = value.blocks.filter(b => b.date >= today()).sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
+  const invalid = upcoming.some(b => !b.allDay && b.start >= b.end) || ordered.some(w => w.enabled && w.start >= w.end);
   return <section className="page">
     <PageTitle eyebrow="Agenda" title="Disponibilidade" text="Os horários livres que aparecem no seu link para a triagem.">
-      <SaveButton dirty={dirty} onSave={() => update(d => saveProfessional(d, { availability: value }))} />
+      <SaveButton dirty={dirty && !invalid} onSave={saveWith(update, d => saveProfessional(d, { availability: value }))} />
     </PageTitle>
+    {invalid && <FormError message="Há um horário com início depois do fim. Corrija antes de salvar." />}
     <div className="two-cols">
       <Block title="Dias e horários">
         <div className="week-editor">{ordered.map(w => <div key={w.weekday} className={`week-row ${w.enabled ? '' : 'off'}`}>
@@ -48,30 +65,40 @@ export function AvailabilityPage({ data, update }: { data: ClinicData; update: U
             <label className="field"><span>Mostrar até</span><select value={value.horizonDays} onChange={e => setValue({ ...value, horizonDays: Number(e.target.value) })}>{[7, 14, 30, 60].map(n => <option key={n} value={n}>{n} dias à frente</option>)}</select></label>
           </div>
         </Block>
-        <Block title="Folgas e bloqueios">
-          <div className="inline-form"><input type="date" min={today()} value={block} onChange={e => setBlock(e.target.value)} /><button className="secondary small" onClick={() => block && !value.blockedDates.includes(block) && setValue({ ...value, blockedDates: [...value.blockedDates, block].sort() })}>Bloquear dia</button></div>
-          <div className="chips">{value.blockedDates.filter(d => d >= today()).map(d => <span className="chip on" key={d}>{formatShort(d)}<button aria-label="Desbloquear" onClick={() => setValue({ ...value, blockedDates: value.blockedDates.filter(x => x !== d) })}><X size={12} /></button></span>)}{!value.blockedDates.some(d => d >= today()) && <p className="muted">Nenhum dia bloqueado.</p>}</div>
-        </Block>
       </div>
     </div>
+    <Block title="Folgas e bloqueios" className="spaced" action={<button className="secondary small" onClick={addBlock}><Plus size={14} /> Adicionar bloqueio</button>}>
+      <p className="muted">Bloqueie um dia inteiro ou só um intervalo (almoço, consulta médica, curso). Esses horários somem do link e não aceitam marcações.</p>
+      {upcoming.length ? <div className="block-list">{upcoming.map(b => <div key={b.id} className="block-row">
+        <label className="field"><span>Dia</span><input type="date" min={today()} value={b.date} onChange={e => setBlock(b.id, { date: e.target.value })} /></label>
+        <label className="inline-check"><input type="checkbox" checked={b.allDay} onChange={e => setBlock(b.id, { allDay: e.target.checked })} /> Dia inteiro</label>
+        <label className="field"><span>Início</span><input type="time" disabled={b.allDay} value={b.start} onChange={e => setBlock(b.id, { start: e.target.value })} /></label>
+        <label className="field"><span>Fim</span><input type="time" disabled={b.allDay} value={b.end} onChange={e => setBlock(b.id, { end: e.target.value })} /></label>
+        <label className="field grow"><span>Motivo <small>Opcional, só você vê</small></span><input value={b.reason ?? ''} onChange={e => setBlock(b.id, { reason: e.target.value })} placeholder="Ex.: congresso" /></label>
+        <button className="icon-button" aria-label="Remover bloqueio" onClick={() => setValue({ ...value, blocks: value.blocks.filter(x => x.id !== b.id) })}><Trash2 size={15} /></button>
+      </div>)}</div> : <p className="muted">Nenhum bloqueio futuro.</p>}
+    </Block>
   </section>;
 }
+
+/* ------------------------------------------------------------------ */
+/* Perfil profissional (área de atuação)                               */
+/* ------------------------------------------------------------------ */
 
 export function ProfilePage({ data, update }: { data: ClinicData; update: Update }) {
   const [value, setValue] = useState<Professional>(data.professional);
   const dirty = JSON.stringify(value) !== JSON.stringify(data.professional);
   const profession = PROFESSIONS[value.profession];
   return <section className="page">
-    <PageTitle eyebrow="Configuração" title="Perfil profissional" text="O que o paciente vê no seu link e as demandas que ele pode escolher.">
-      <SaveButton dirty={dirty} onSave={() => update(d => saveProfessional(d, value))} />
+    <PageTitle eyebrow="Configuração" title="Perfil profissional" text="Sua área, abordagem e as demandas que o paciente pode escolher.">
+      <SaveButton dirty={dirty} onSave={saveWith(update, d => saveProfessional(d, value))} />
     </PageTitle>
     <div className="two-cols">
       <Block title="Área de atuação"><ProfessionPicker value={value} onChange={choice => setValue({ ...value, ...choice })} /></Block>
       <div className="stack">
-        <Block title="Apresentação">
+        <Block title="Identificação">
           <label className="field"><span>Nome exibido</span><input value={value.name} onChange={e => setValue({ ...value, name: e.target.value })} /></label>
           {profession.council && <label className="field"><span>Registro profissional</span><input value={value.councilNumber ?? ''} onChange={e => setValue({ ...value, councilNumber: e.target.value })} placeholder={`${profession.council} 00/00000`} /></label>}
-          <label className="field"><span>Sobre você <small>Aparece no topo do link</small></span><textarea rows={4} value={value.bio ?? ''} onChange={e => setValue({ ...value, bio: e.target.value })} /></label>
         </Block>
         <Block title="Atendimento">
           <label className="field"><span>Modalidade</span><select value={value.modality} onChange={e => setValue({ ...value, modality: e.target.value as Modality })}><option value="ambos">Online e presencial</option><option value="online">Somente online</option><option value="presencial">Somente presencial</option></select></label>
@@ -81,6 +108,73 @@ export function ProfilePage({ data, update }: { data: ClinicData; update: Update
     </div>
   </section>;
 }
+
+/* ------------------------------------------------------------------ */
+/* Página pública                                                      */
+/* ------------------------------------------------------------------ */
+
+/** Lê uma imagem e reduz no navegador para caber no armazenamento local. */
+function readImage(file: File, maxWidth: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale); canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+export function PublicPageEditor({ data, update }: { data: ClinicData; update: Update }) {
+  const [value, setValue] = useState<Professional>(data.professional);
+  const dirty = JSON.stringify(value) !== JSON.stringify(data.professional);
+  const pick = (field: 'photo' | 'cover', width: number) => async (e: ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) setValue({ ...value, [field]: await readImage(file, width) }); e.target.value = ''; };
+  const setService = (id: string, patch: Partial<Service>) => setValue({ ...value, services: value.services.map(s => s.id === id ? { ...s, ...patch } : s) });
+  return <section className="page">
+    <PageTitle eyebrow="Divulgação" title="Página pública" text="Sua vitrine. É o que o paciente vê antes de clicar em “Marcar consulta!”.">
+      <a className="secondary small" href={`/${data.professional.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Ver página</a>
+      <SaveButton dirty={dirty} onSave={saveWith(update, d => saveProfessional(d, value))} />
+    </PageTitle>
+    <Block title="Foto e capa">
+      <div className="media-editor">
+        <div className={`cover-preview ${value.cover ? '' : 'empty'}`} style={value.cover ? { backgroundImage: `url(${value.cover})` } : undefined}>
+          <span className="media-actions"><label className="secondary small"><ImagePlus size={14} /> {value.cover ? 'Trocar capa' : 'Adicionar capa'}<input type="file" accept="image/*" onChange={pick('cover', 1600)} hidden /></label>{value.cover && <button className="secondary small" onClick={() => setValue({ ...value, cover: undefined })}>Remover</button>}</span>
+        </div>
+        <div className="photo-row"><Avatar professional={value} size={88} /><span className="media-actions"><label className="secondary small"><ImagePlus size={14} /> {value.photo ? 'Trocar foto' : 'Adicionar foto'}<input type="file" accept="image/*" onChange={pick('photo', 400)} hidden /></label>{value.photo && <button className="secondary small" onClick={() => setValue({ ...value, photo: undefined })}>Remover</button>}</span></div>
+      </div>
+      <p className="muted">A capa é opcional. Use uma imagem horizontal, como o consultório ou uma paisagem.</p>
+    </Block>
+    <div className="two-cols spaced-grid">
+      <Block title="Apresentação">
+        <label className="field"><span>Descrição <small>Uma frase abaixo do seu nome</small></span><input value={value.headline ?? ''} onChange={e => setValue({ ...value, headline: e.target.value })} placeholder="Ex.: Psicanálise para adultos, online e presencial." maxLength={140} /></label>
+        <label className="field"><span>Biografia</span><textarea rows={9} value={value.bio ?? ''} onChange={e => setValue({ ...value, bio: e.target.value })} placeholder="Sua formação, experiência e como você trabalha." /></label>
+      </Block>
+      <Block title="Texto do agendamento">
+        <p className="muted">Primeira tela depois de “Marcar consulta!”.</p>
+        <label className="field"><span>Título</span><input value={value.bookingTitle} onChange={e => setValue({ ...value, bookingTitle: e.target.value })} placeholder="O que você procura?" /></label>
+        <label className="field"><span>Texto de apoio</span><textarea rows={5} value={value.bookingIntro} onChange={e => setValue({ ...value, bookingIntro: e.target.value })} /></label>
+      </Block>
+    </div>
+    <Block title="Serviços" className="spaced" action={<button className="secondary small" onClick={() => setValue({ ...value, services: [...value.services, { id: uid(), name: '' }] })}><Plus size={14} /> Adicionar serviço</button>}>
+      {value.services.length ? <div className="service-editor">{value.services.map(s => <div key={s.id} className="service-row">
+        <label className="field grow"><span>Nome</span><input value={s.name} onChange={e => setService(s.id, { name: e.target.value })} placeholder="Ex.: Psicoterapia individual" /></label>
+        <label className="field"><span>Duração (min)</span><input type="number" min={10} step={5} value={s.minutes ?? ''} onChange={e => setService(s.id, { minutes: e.target.value ? Number(e.target.value) : undefined })} /></label>
+        <label className="field"><span>Valor <small>Opcional</small></span><input value={s.price ?? ''} onChange={e => setService(s.id, { price: e.target.value })} placeholder="R$ 0,00" /></label>
+        <label className="field full-row"><span>Descrição</span><input value={s.description ?? ''} onChange={e => setService(s.id, { description: e.target.value })} /></label>
+        <button className="icon-button" aria-label="Remover serviço" onClick={() => setValue({ ...value, services: value.services.filter(x => x.id !== s.id) })}><Trash2 size={15} /></button>
+      </div>)}</div> : <p className="muted">Nenhum serviço cadastrado.</p>}
+    </Block>
+  </section>;
+}
+
+/* ------------------------------------------------------------------ */
+/* Meu link                                                            */
+/* ------------------------------------------------------------------ */
 
 export function MyLinkPage({ data, update }: { data: ClinicData; update: Update }) {
   const [slug, setSlug] = useState(data.professional.slug);
@@ -92,7 +186,7 @@ export function MyLinkPage({ data, update }: { data: ClinicData; update: Update 
   return <section className="page">
     <PageTitle eyebrow="Divulgação" title="Meu link" text="Coloque na bio do Instagram, no WhatsApp ou imprima o QR Code no consultório." />
     <div className="two-cols">
-      <Block title="Link público">
+      <Block title="Link da sua página">
         <p className="link-big">{url.replace(/^https?:\/\//, '')}</p>
         <div className="button-row"><button className="primary small" onClick={() => copy(url)}>{copied === url ? <Check size={15} /> : <Copy size={15} />} {copied === url ? 'Copiado' : 'Copiar link'}</button><a className="secondary small" href={`/${data.professional.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Abrir</a></div>
         <label className="field"><span>Endereço personalizado</span><div className="inline-form"><span className="muted">{origin.replace(/^https?:\/\//, '')}/</span><input value={slug} onChange={e => setSlug(slugify(e.target.value))} /><button className="secondary small" disabled={slug === data.professional.slug} onClick={() => update(d => saveProfessional(d, { slug }))}>Salvar</button></div></label>
@@ -102,60 +196,192 @@ export function MyLinkPage({ data, update }: { data: ClinicData; update: Update 
         <button className="secondary small" onClick={() => { const svg = document.querySelector('.qr svg'); if (!svg) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' })); a.download = `qr-${data.professional.slug}.svg`; a.click(); }}><Download size={15} /> Baixar</button>
       </Block>
     </div>
-    <Block title="Links por demanda" className="spaced">
-      <p className="muted">Cada link já abre com o assunto escolhido. Útil para posts sobre um tema específico.</p>
-      <div className="link-list">{data.professional.categories.map(c => { const u = `${url}/${slugify(c)}`; return <div key={c}><span>{c}</span><code>{u.replace(/^https?:\/\//, '')}</code><button className="secondary small" onClick={() => copy(u)}>{copied === u ? <Check size={14} /> : <Copy size={14} />}</button></div>; })}</div>
+    <Block title="Links diretos para agendar" className="spaced">
+      <p className="muted">Pulam a página e abrem o pedido de triagem com o assunto já escolhido. Úteis em posts sobre um tema.</p>
+      <div className="link-list">{[['Agendamento', `${url}/agendar`], ...data.professional.categories.map(c => [c, `${url}/agendar/${slugifyTopic(c)}`])].map(([label, u]) => <div key={u}><span>{label}</span><code>{u.replace(/^https?:\/\//, '')}</code><button className="secondary small" onClick={() => copy(u)} aria-label={`Copiar link ${label}`}>{copied === u ? <Check size={14} /> : <Copy size={14} />}</button></div>)}</div>
     </Block>
   </section>;
 }
 
-export function AccountPage() {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState('');
-  useEffect(() => { supabase?.auth.getUser().then(({ data: { user } }) => setEmail(user?.email ?? '')); }, []);
-  if (!supabase) return <section className="page"><PageTitle eyebrow="Conta" title="Conta e acesso" text="No modo demonstração não há conta. Configure o Supabase para ativar login e cadastro." /></section>;
-  async function sendReset() { setStatus('Enviando…'); const { error } = await supabase!.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/redefinir-senha` }); setStatus(error ? error.message : 'Enviamos um link de redefinição para o seu e-mail.'); }
-  async function logout() { await supabase!.auth.signOut(); window.location.href = '/login'; }
+/* ------------------------------------------------------------------ */
+/* Conta                                                               */
+/* ------------------------------------------------------------------ */
+
+function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return <label className="toggle-row"><span><strong>{label}</strong>{hint && <small>{hint}</small>}</span><span className="switch"><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /><i /></span></label>;
+}
+
+const DEMO_SESSIONS = [
+  { device: 'Este navegador', place: 'Salvador, BA', when: 'Agora', current: true },
+  { device: 'iPhone · Safari', place: 'Salvador, BA', when: 'Há 2 dias', current: false },
+  { device: 'Windows · Chrome', place: 'Lauro de Freitas, BA', when: 'Há 9 dias', current: false },
+];
+
+export function AccountPage({ data, update }: { data: ClinicData; update: Update }) {
+  const [value, setValue] = useState<AccountSettings>(data.account);
+  const [password, setPassword] = useState({ current: '', next: '', confirm: '' });
+  const [passwordStatus, setPasswordStatus] = useState('');
+  const [sessions, setSessions] = useState(DEMO_SESSIONS);
+  const dirty = JSON.stringify(value) !== JSON.stringify(data.account);
+  useEffect(() => { supabase?.auth.getUser().then(({ data: { user } }) => { if (user?.email) setValue(v => ({ ...v, email: user.email! })); }); }, []);
+
+  async function changePassword() {
+    if (password.next.length < 8) { setPasswordStatus('A nova senha precisa de pelo menos 8 caracteres.'); return; }
+    if (password.next !== password.confirm) { setPasswordStatus('As senhas não conferem.'); return; }
+    if (!supabase) { setPasswordStatus('Senha alterada (demonstração: nada foi enviado).'); setPassword({ current: '', next: '', confirm: '' }); return; }
+    const { error } = await supabase.auth.updateUser({ password: password.next });
+    setPasswordStatus(error ? error.message : 'Senha alterada.');
+    if (!error) setPassword({ current: '', next: '', confirm: '' });
+  }
+  function exportData() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    a.download = `casozero-dados-${iso(new Date())}.json`;
+    a.click();
+  }
+  async function logout() { if (supabase) await supabase.auth.signOut(); window.location.href = '/login'; }
+
   return <section className="page">
-    <PageTitle eyebrow="Conta" title="Conta e acesso" />
-    <Block title="Acesso"><dl className="facts"><div><dt>E-mail</dt><dd>{email || '—'}</dd></div></dl><div className="button-row"><button className="secondary small" onClick={sendReset}>Redefinir senha</button><button className="ghost-danger small" onClick={logout}>Sair</button></div>{status && <p className="auth-notice">{status}</p>}</Block>
+    <PageTitle eyebrow="Conta" title="Conta e acesso" text="Seus dados de acesso, avisos, segurança e privacidade.">
+      <SaveButton dirty={dirty} onSave={saveWith(update, d => saveAccount(d, value))} />
+    </PageTitle>
+    <div className="two-cols">
+      <div className="stack">
+        <Block title="Dados de acesso">
+          <label className="field"><span>E-mail de login</span><input type="email" value={value.email} onChange={e => setValue({ ...value, email: e.target.value })} /></label>
+          <label className="field"><span>Celular <small>Para avisos e recuperação da conta</small></span><input type="tel" value={value.phone} onChange={e => setValue({ ...value, phone: e.target.value })} /></label>
+        </Block>
+        <Block title="Alterar senha">
+          <label className="field"><span>Senha atual</span><input type="password" autoComplete="current-password" value={password.current} onChange={e => setPassword({ ...password, current: e.target.value })} /></label>
+          <div className="field-row">
+            <label className="field"><span>Nova senha</span><input type="password" autoComplete="new-password" value={password.next} onChange={e => setPassword({ ...password, next: e.target.value })} /></label>
+            <label className="field"><span>Confirmar</span><input type="password" autoComplete="new-password" value={password.confirm} onChange={e => setPassword({ ...password, confirm: e.target.value })} /></label>
+          </div>
+          <button className="secondary small" disabled={!password.next} onClick={changePassword}>Alterar senha</button>
+          {passwordStatus && <p className="muted status-line">{passwordStatus}</p>}
+        </Block>
+      </div>
+      <div className="stack">
+        <Block title="Avisos">
+          <Toggle label="Novo pedido de triagem" hint="Receber um e-mail quando alguém pedir horário pelo link." checked={value.notifyNewRequest} onChange={v => setValue({ ...value, notifyNewRequest: v })} />
+          <Toggle label="Resumo diário da agenda" hint="Às 7h, a lista de atendimentos do dia." checked={value.notifyDailyAgenda} onChange={v => setValue({ ...value, notifyDailyAgenda: v })} />
+          <Toggle label="Lembrete para o paciente" hint="Mensagem automática no WhatsApp antes da sessão." checked={value.remindPatients} onChange={v => setValue({ ...value, remindPatients: v })} />
+          {value.remindPatients && <label className="field"><span>Enviar o lembrete</span><select value={value.reminderHours} onChange={e => setValue({ ...value, reminderHours: Number(e.target.value) })}>{[2, 12, 24, 48].map(h => <option key={h} value={h}>{h} horas antes</option>)}</select></label>}
+        </Block>
+        <Block title="Segurança">
+          <Toggle label="Verificação em duas etapas" hint="Pede um código do celular ao entrar em um aparelho novo." checked={value.twoFactor} onChange={v => setValue({ ...value, twoFactor: v })} />
+          <p className="sub-title">Aparelhos conectados</p>
+          {sessions.map(s => <div key={s.device} className="device-row"><ShieldCheck size={16} /><span><strong>{s.device}</strong><small>{s.place} · {s.when}</small></span>{s.current ? <span className="badge badge-active">Atual</span> : <button className="text-link" onClick={() => setSessions(sessions.filter(x => x !== s))}>Encerrar</button>}</div>)}
+        </Block>
+      </div>
+    </div>
+    <Block title="Privacidade e dados" className="spaced">
+      <p className="muted">Pela LGPD, você pode baixar tudo o que está guardado na sua conta, inclusive pacientes e caderneta.</p>
+      <div className="button-row">
+        <button className="secondary small" onClick={exportData}><Download size={14} /> Baixar meus dados</button>
+        <button className="secondary small" onClick={logout}><LogOut size={14} /> Sair</button>
+        <button className="ghost-danger small" onClick={() => { if (confirm('Excluir a conta apaga todos os dados. Na demonstração, isso volta ao exemplo inicial. Continuar?')) { resetClinic(); window.location.href = '/'; } }}><Trash2 size={14} /> Excluir conta</button>
+      </div>
+      <p className="muted small-print">Membro desde {formatShort('2026-03-02')} · Plano {PLANS[data.plan].name}</p>
+    </Block>
   </section>;
 }
 
-export function SubscriptionPage({ data }: { data: ClinicData }) {
-  const [current, setCurrent] = useState<PlanId>('caso_zero');
+/* ------------------------------------------------------------------ */
+/* Assinatura                                                          */
+/* ------------------------------------------------------------------ */
+
+export function SubscriptionPage({ data, update }: { data: ClinicData; update: Update }) {
   const [selected, setSelected] = useState<PlanId>();
+  const [seats, setSeats] = useState(Math.max(MIN_CLINIC_SEATS, data.team.filter(m => m.role === 'professional').length + 1));
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState('');
   useEffect(() => { (async () => {
     if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser(); if (!user) return;
     const { data: row } = await supabase.from('subscriptions').select('plan_id').eq('user_id', user.id).eq('status', 'active').order('updated_at', { ascending: false }).limit(1).maybeSingle();
-    if (row?.plan_id && row.plan_id in PLANS) setCurrent(row.plan_id as PlanId);
-  })(); }, []);
-  const month = today().slice(0, 7);
-  const used = data.requests.filter(r => iso(new Date(r.createdAt)).slice(0, 7) === month).length;
-  const plan = PLANS[current];
-  const percent = Math.min(100, Math.round(used / plan.monthlyTriages * 100));
-  async function checkout() {
-    if (!selected || selected === 'caso_zero') return;
-    if (!supabase) { setNotice('O checkout precisa do Supabase e da Stripe configurados.'); return; }
+    const plan = toPlanId(row?.plan_id);
+    if (plan && plan !== data.plan) update(d => setPlan(d, plan));
+  })(); }, [data.plan, update]);
+  const plan = PLANS[data.plan];
+  const total = data.patients.length;
+  const limit = plan.maxPatients;
+  async function choose() {
+    if (!selected) return;
+    setNotice('');
+    // Sem Supabase/Stripe: troca local para testar os recursos de cada plano.
+    if (!supabase || selected === 'gratis') {
+      const freeLimit = PLANS.gratis.maxPatients ?? 0;
+      if (selected === 'gratis' && total >= freeLimit) setNotice(`Você tem ${total} pacientes cadastrados. No Grátis o limite é ${freeLimit}: todos continuam acessíveis, mas não dá para cadastrar novos.`);
+      update(d => setPlan(d, selected)); setSelected(undefined); return;
+    }
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
-    const response = await fetch('/api/stripe/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ plan: selected }) });
+    const response = await fetch('/api/stripe/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ plan: selected, seats }) });
     const result = await response.json();
     if (result.url) window.location.href = result.url; else { setNotice(result.error || 'Não foi possível abrir o checkout.'); setLoading(false); }
   }
   return <section className="page">
-    <PageTitle eyebrow="Conta" title="Assinatura" text="Seu plano conta as novas triagens recebidas no mês." />
+    <PageTitle eyebrow="Conta" title="Assinatura" text="Todos os recursos estão em todos os planos. O que muda é o limite de pacientes e a equipe." />
     <div className="two-cols">
-      <Block title={`Plano ${plan.name}`}><p className="big-number">{formatBRL(plan.price)}<small>/mês</small></p><p className="muted">{plan.description}</p></Block>
-      <Block title="Uso neste mês"><p className="big-number">{used}<small> de {plan.monthlyTriages} triagens</small></p><div className="usage-bar"><i style={{ width: `${percent}%` }} /></div></Block>
+      <Block title={`Plano ${plan.name}`}><p className="big-number">{plan.price === 0 ? 'R$ 0' : formatBRL(plan.price)}<small>/mês{plan.perProfessional ? ' por profissional' : ''}</small></p><p className="muted">{plan.description}</p></Block>
+      <Block title="Pacientes cadastrados">
+        <p className="big-number">{total}<small>{limit !== undefined ? ` de ${limit}` : ' · sem limite'}</small></p>
+        {limit !== undefined && <div className="usage-bar"><i style={{ width: `${Math.min(100, Math.round(total / limit * 100))}%` }} /></div>}
+        <p className="muted status-line">{limit !== undefined ? 'Contam todos os pacientes já cadastrados, inclusive pausados e com alta.' : 'Cadastre quantos pacientes quiser.'}</p>
+      </Block>
     </div>
     <Block title="Trocar de plano" className="spaced">
-      <div className="plan-options">{Object.values(PLANS).filter(p => p.id !== current).map(p => <button key={p.id} className={selected === p.id ? 'on' : ''} onClick={() => setSelected(p.id)}><strong>{p.name}</strong><span>{formatBRL(p.price)}/mês</span><small>{p.monthlyTriages} triagens · {p.maxProfessionals} profissional(is)</small></button>)}</div>
-      {selected && selected !== 'caso_zero' && <button className="primary" disabled={loading} onClick={checkout}>{loading ? <><Loader2 size={15} className="spin" /> Abrindo Stripe…</> : <>Assinar {PLANS[selected].name} <ArrowRight size={15} /></>}</button>}
+      <div className="plan-options">{Object.values(PLANS).filter(p => p.id !== data.plan).map(p => <button key={p.id} className={selected === p.id ? 'on' : ''} onClick={() => setSelected(p.id)}><strong>{p.name}</strong><span>{priceLabel(p)}</span><small>{p.maxPatients ? `Até ${p.maxPatients} pacientes` : 'Pacientes ilimitados'}{p.team ? ' · equipe e secretária' : ''}</small></button>)}</div>
+      {selected === 'clinica' && <label className="field narrow"><span>Quantos profissionais? <small>Mínimo {MIN_CLINIC_SEATS}</small></span><input type="number" min={MIN_CLINIC_SEATS} value={seats} onChange={e => setSeats(Math.max(MIN_CLINIC_SEATS, Number(e.target.value) || MIN_CLINIC_SEATS))} /><small className="muted">Total: {formatBRL(seats * PLANS.clinica.price)}/mês</small></label>}
+      {selected && <button className="primary" disabled={loading} onClick={choose}>{loading ? <><Loader2 size={15} className="spin" /> Abrindo Stripe…</> : <>{supabase && selected !== 'gratis' ? 'Assinar' : 'Usar'} o plano {PLANS[selected].name} <ArrowRight size={15} /></>}</button>}
+      {!supabase && <p className="muted status-line">Modo demonstração: a troca é imediata e não cobra nada, para você testar cada plano.</p>}
       {notice && <p className="auth-notice">{notice}</p>}
     </Block>
+  </section>;
+}
+
+/* ------------------------------------------------------------------ */
+/* Equipe (plano Clínica)                                              */
+/* ------------------------------------------------------------------ */
+
+export const ROLE_LABELS: Record<TeamRole, string> = { professional: 'Profissional', secretary: 'Secretária(o)' };
+
+export function TeamPage({ data, update }: { data: ClinicData; update: Update }) {
+  const [team, setTeam] = useState<TeamMember[]>(data.team);
+  const [draft, setDraft] = useState<{ name: string; email: string; role: TeamRole; profession: ProfessionId }>({ name: '', email: '', role: 'secretary', profession: 'psicologia' });
+  const dirty = JSON.stringify(team) !== JSON.stringify(data.team);
+  if (!PLANS[data.plan].team) return <section className="page">
+    <PageTitle eyebrow="Clínica" title="Equipe" text="Agenda compartilhada e acesso para secretária fazem parte do plano Clínica." />
+    <Block title="Disponível no plano Clínica"><p className="muted">Cada profissional mantém a própria caderneta, que só ele vê. A secretária acessa apenas a agenda de todos.</p><Link className="primary small" href="/app/configuracoes/assinatura">Ver planos</Link></Block>
+  </section>;
+  const add = () => { if (!draft.name.trim() || !draft.email.trim()) return; setTeam([...team, { id: uid(), name: draft.name.trim(), email: draft.email.trim(), role: draft.role, profession: draft.role === 'professional' ? draft.profession : undefined, status: 'invited' }]); setDraft({ ...draft, name: '', email: '' }); };
+  const secretary = team.find(m => m.role === 'secretary');
+  return <section className="page">
+    <PageTitle eyebrow="Clínica" title="Equipe" text="Quem atende com você e quem cuida da agenda.">
+      <SaveButton dirty={dirty} onSave={saveWith(update, d => saveTeam(d, team))} />
+    </PageTitle>
+    <div className="two-cols">
+      <Block title="Pessoas">
+        <div className="device-row"><Avatar professional={data.professional} size={32} /><span><strong>{data.professional.name}</strong><small>{PROFESSIONS[data.professional.profession].label} · responsável pela conta</small></span><span className="badge badge-active">Você</span></div>
+        {team.map(m => <div key={m.id} className="device-row"><span className="initials">{m.name.split(' ').map(x => x[0]).slice(0, 2).join('')}</span><span><strong>{m.name}</strong><small>{m.role === 'professional' && m.profession ? PROFESSIONS[m.profession].label : ROLE_LABELS[m.role]} · {m.email}</small></span>{m.status === 'invited' && <span className="badge badge-pending">Convite enviado</span>}<button className="icon-button" aria-label={`Remover ${m.name}`} onClick={() => setTeam(team.filter(x => x.id !== m.id))}><Trash2 size={14} /></button></div>)}
+      </Block>
+      <div className="stack">
+        <Block title="Convidar">
+          <label className="field"><span>Nome</span><input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label>
+          <label className="field"><span>E-mail</span><input type="email" value={draft.email} onChange={e => setDraft({ ...draft, email: e.target.value })} /></label>
+          <div className="field"><span>Acesso</span><div className="segmented">{(['secretary', 'professional'] as TeamRole[]).map(r => <button type="button" key={r} className={draft.role === r ? 'active' : ''} onClick={() => setDraft({ ...draft, role: r })}>{ROLE_LABELS[r]}</button>)}</div></div>
+          {draft.role === 'professional' && <label className="field"><span>Profissão</span><select value={draft.profession} onChange={e => setDraft({ ...draft, profession: e.target.value as ProfessionId })}>{PROFESSION_LIST.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select></label>}
+          <button className="secondary small" disabled={!draft.name.trim() || !draft.email.trim()} onClick={add}><Plus size={14} /> Adicionar à equipe</button>
+        </Block>
+        <Block title="O que cada um vê">
+          <ul className="access-list">
+            <li><b>Profissional</b> Agenda compartilhada, os próprios pacientes e a própria caderneta. Nunca a caderneta dos colegas.</li>
+            <li><b>Secretária(o)</b> Só a agenda de todos: horários, nomes e situação. Sem caderneta, evolução ou dados da triagem.</li>
+          </ul>
+          {secretary && !dirty && <button className="secondary small" onClick={() => { update(d => setViewAs(d, secretary.id)); window.location.href = '/app/agenda'; }}><Eye size={14} /> Ver o painel como {secretary.name.split(' ')[0]}</button>}
+        </Block>
+      </div>
+    </div>
   </section>;
 }

@@ -1,22 +1,25 @@
-import { addDays, at, iso, today, toMinutes, toTime, weekdayOf } from '@/lib/dates';
-import { Appointment, Professional, Recurrence, TriageRequest } from '@/types';
+import { addDays, at, formatDayMonth, iso, today, toMinutes, toTime, weekdayOf } from '@/lib/dates';
+import { Appointment, Professional, Recurrence, TimeBlock, TriageRequest } from '@/types';
 
 const overlaps = (aStart: number, aMinutes: number, bStart: number, bMinutes: number) => aStart < bStart + bMinutes && bStart < aStart + aMinutes;
 
+/** Intervalo bloqueado de um bloqueio, em minutos do dia. */
+const blockRange = (block: TimeBlock) => block.allDay ? { start: 0, minutes: 24 * 60 } : { start: toMinutes(block.start), minutes: Math.max(0, toMinutes(block.end) - toMinutes(block.start)) };
+
 /**
  * Horários livres para triagem em uma data: a janela do dia fatiada pela
- * duração da triagem, sem os compromissos já marcados, sem os pedidos ainda
- * pendentes e respeitando a antecedência mínima.
+ * duração da triagem, sem compromissos, pedidos pendentes e bloqueios, e
+ * respeitando a antecedência mínima.
  */
 export function freeSlots(professional: Professional, appointments: Appointment[], requests: TriageRequest[], date: string, now = new Date()): string[] {
   const { availability } = professional;
-  if (availability.blockedDates.includes(date)) return [];
   const window = availability.windows.find(w => w.weekday === weekdayOf(date));
   if (!window?.enabled) return [];
   const length = availability.triageMinutes;
   const busy = [
     ...appointments.filter(a => a.date === date && a.status !== 'canceled').map(a => ({ start: toMinutes(a.time), minutes: a.minutes })),
     ...requests.filter(r => r.status === 'pending' && r.requestedDate === date).map(r => ({ start: toMinutes(r.requestedTime), minutes: length })),
+    ...availability.blocks.filter(b => b.date === date).map(blockRange),
   ];
   const earliest = now.getTime() + availability.minNoticeHours * 3_600_000;
   const slots: string[] = [];
@@ -37,6 +40,19 @@ export function availableDates(professional: Professional, appointments: Appoint
     if (freeSlots(professional, appointments, requests, date, now).length) dates.add(date);
   }
   return dates;
+}
+
+/**
+ * Motivo pelo qual um horário não pode ser usado: outro compromisso no mesmo
+ * intervalo ou um bloqueio da agenda. `ignore` lista compromissos que serão
+ * substituídos pela própria operação (ex.: a triagem sendo remarcada).
+ */
+export function findConflict(professional: Professional, appointments: Appointment[], date: string, time: string, minutes: number, ignore: (a: Appointment) => boolean = () => false): string | undefined {
+  const start = toMinutes(time);
+  const clash = appointments.find(a => a.date === date && a.status !== 'canceled' && !ignore(a) && overlaps(start, minutes, toMinutes(a.time), a.minutes));
+  if (clash) return `${formatDayMonth(date)} às ${clash.time} já está ocupado: ${clash.kind === 'triage' ? 'triagem' : 'sessão'} de ${clash.title}.`;
+  const block = professional.availability.blocks.find(b => b.date === date && (() => { const r = blockRange(b); return overlaps(start, minutes, r.start, r.minutes); })());
+  if (block) return `${formatDayMonth(date)} ${block.allDay ? 'está bloqueado o dia todo' : `está bloqueado das ${block.start} às ${block.end}`}${block.reason ? ` (${block.reason})` : ''}.`;
 }
 
 /** Datas de uma recorrência a partir de `from` até `until` (inclusive). */

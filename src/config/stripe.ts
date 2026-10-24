@@ -1,8 +1,13 @@
+/**
+ * Preços da Stripe por plano pago. Os IDs abaixo são da área de teste
+ * (sandbox “CasoZero”); em produção, informe os preços da conta real nas
+ * variáveis de ambiente do servidor.
+ */
 export const STRIPE_PRICE_IDS = {
-  caso_um: 'price_1UHn8aErEkh81TJ5ZETDV8oe',
-  caso_dois: 'price_1UHn9CErEkh81TJ5tQiVqd5z',
-  caso_tres: 'price_1UHnAiErEkh81TJ5MN9PIHF7',
-  caso_zero: 'price_1UHn7AErEkh81TJ5q0tZzdZy',
+  profissional: process.env.STRIPE_PRICE_PROFISSIONAL ?? 'price_1UU7l8ErEkh81TJ5qOBXPsM2',
+  clinica: process.env.STRIPE_PRICE_CLINICA ?? 'price_1UU7lWErEkh81TJ5aGHrYQC0',
 } as const;
 
 export type PaidPlanId = keyof typeof STRIPE_PRICE_IDS;
+/** A Clínica é cobrada por profissional, com no mínimo 2. */
+export const MIN_CLINIC_SEATS = 2;

@@ -1,9 +1,10 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { addDays, today } from '@/lib/dates';
-import { buildSeed } from '@/mocks/data';
-import { Appointment, AppointmentStatus, Patient, PatientStatus, Professional, Recurrence, SessionNote, TriageRequest } from '@/types';
-import { RECURRENCE_HORIZON_DAYS, recurringDates } from './scheduling';
+import { PLANS, PlanId } from '@/config/plans';
+import { buildSeed, buildTeamAppointments, demoAccount, demoProfessional, demoTeam } from '@/mocks/data';
+import { AccountSettings, Appointment, AppointmentStatus, Patient, PatientStatus, Professional, Recurrence, SessionNote, TeamAppointment, TeamMember, TriageRequest } from '@/types';
+import { findConflict, RECURRENCE_HORIZON_DAYS, recurringDates } from './scheduling';
 
 /**
  * Estado do protótipo. Por enquanto fica no localStorage do navegador; cada
@@ -12,27 +13,55 @@ import { RECURRENCE_HORIZON_DAYS, recurringDates } from './scheduling';
  */
 export interface ClinicData {
   professional: Professional;
+  account: AccountSettings;
+  /** Plano em uso (no modo demonstração, escolhido na tela de Assinatura). */
+  plan: PlanId;
+  team: TeamMember[];
+  teamAppointments: TeamAppointment[];
+  /** Demonstração: ver o painel como a secretária (id do membro) ou como a profissional. */
+  viewAs?: string;
   requests: TriageRequest[];
   patients: Patient[];
   appointments: Appointment[];
   notes: SessionNote[];
 }
 
+/** Resultado das operações que podem ser recusadas por conflito de horário. */
+export type Outcome<T = undefined> = { error?: string; value?: T };
+
 const KEY = 'casozero-saude-v1';
 const EVENT = 'casozero-saude-change';
-const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+export const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+/** Completa dados salvos por versões anteriores do protótipo. */
+function migrate(data: ClinicData) {
+  const p = data.professional as Professional & { availability: { blockedDates?: string[] } };
+  if (!p.availability.blocks) p.availability.blocks = (p.availability.blockedDates ?? []).map(date => ({ id: uid(), date, allDay: true, start: '08:00', end: '18:00' }));
+  delete p.availability.blockedDates;
+  p.services ??= structuredClone(demoProfessional.services);
+  p.bookingTitle ??= demoProfessional.bookingTitle;
+  p.bookingIntro ??= p.bio ?? demoProfessional.bookingIntro;
+  data.account ??= structuredClone(demoAccount);
+  data.plan = data.plan in PLANS ? data.plan : 'gratis';
+  data.team ??= structuredClone(demoTeam);
+  data.teamAppointments ??= buildTeamAppointments();
+}
 
 export function loadClinic(): ClinicData {
   let data: ClinicData | null = null;
   try { const saved = window.localStorage.getItem(KEY); if (saved) data = JSON.parse(saved); } catch { /* volta para a demonstração */ }
   if (!data?.professional) data = buildSeed();
+  migrate(data);
   rollRecurrences(data);
   return data;
 }
 
+/** Salva; devolve false quando o navegador recusa (ex.: imagens grandes demais). */
 export function saveClinic(data: ClinicData) {
-  try { window.localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* sem armazenamento disponível */ }
+  let ok = true;
+  try { window.localStorage.setItem(KEY, JSON.stringify(data)); } catch { ok = false; }
   window.dispatchEvent(new Event(EVENT));
+  return ok;
 }
 
 export function resetClinic() { try { window.localStorage.removeItem(KEY); } catch { /* ignore */ } window.dispatchEvent(new Event(EVENT)); }
@@ -51,7 +80,9 @@ export function useClinic() {
   const update = useCallback(<R,>(change: (draft: ClinicData) => R): R => {
     const draft = loadClinic();
     const result = change(draft);
-    saveClinic(draft);
+    // Operação recusada: não grava nada.
+    if (result && typeof result === 'object' && 'error' in result && result.error) return result;
+    if (!saveClinic(draft)) return { error: 'Não foi possível salvar: o armazenamento do navegador está cheio. Use imagens menores.' } as R;
     setData(draft);
     return result;
   }, []);
@@ -64,20 +95,27 @@ export function useClinic() {
 
 export type NewRequest = Omit<TriageRequest, 'id' | 'status' | 'createdAt'>;
 
-export function submitRequest(data: ClinicData, input: NewRequest) {
+export function submitRequest(data: ClinicData, input: NewRequest): Outcome<TriageRequest> {
+  const taken = data.requests.some(r => r.status === 'pending' && r.requestedDate === input.requestedDate && r.requestedTime === input.requestedTime);
+  const conflict = findConflict(data.professional, data.appointments, input.requestedDate, input.requestedTime, data.professional.availability.triageMinutes);
+  if (taken || conflict) return { error: 'Esse horário acabou de ser reservado. Escolha outro, por favor.' };
   const request: TriageRequest = { ...input, id: uid(), status: 'pending', createdAt: new Date().toISOString() };
   data.requests.unshift(request);
-  return request;
+  return { value: request };
 }
 
-export function confirmRequest(data: ClinicData, id: string, date: string, time: string) {
+export function confirmRequest(data: ClinicData, id: string, date: string, time: string): Outcome {
   const request = data.requests.find(r => r.id === id);
-  if (!request) return;
+  if (!request) return { error: 'Solicitação não encontrada.' };
+  const minutes = data.professional.availability.triageMinutes;
+  const conflict = findConflict(data.professional, data.appointments, date, time, minutes, a => a.requestId === id && a.kind === 'triage');
+  if (conflict) return { error: `${conflict} Escolha outro horário para a triagem.` };
   data.appointments = data.appointments.filter(a => !(a.requestId === id && a.kind === 'triage'));
   request.status = 'confirmed';
   request.scheduledDate = date;
   request.scheduledTime = time;
-  data.appointments.push({ id: uid(), kind: 'triage', date, time, minutes: data.professional.availability.triageMinutes, status: 'scheduled', requestId: id, title: request.name });
+  data.appointments.push({ id: uid(), kind: 'triage', date, time, minutes, status: 'scheduled', requestId: id, title: request.name });
+  return {};
 }
 
 export function declineRequest(data: ClinicData, id: string, reason: string) {
@@ -91,15 +129,21 @@ export function declineRequest(data: ClinicData, id: string, reason: string) {
 export interface TriageOutcome { continues: boolean; note: string; recurrence?: Recurrence; }
 
 /** Fecha a triagem: vira paciente com horário fixo ou é encerrada. */
-export function completeTriage(data: ClinicData, id: string, outcome: TriageOutcome) {
+export function completeTriage(data: ClinicData, id: string, outcome: TriageOutcome): Outcome<Patient> {
   const request = data.requests.find(r => r.id === id);
-  if (!request) return;
+  if (!request) return { error: 'Solicitação não encontrada.' };
   const triage = data.appointments.find(a => a.requestId === id && a.kind === 'triage');
+  if (outcome.continues && outcome.recurrence) {
+    const limit = patientLimitError(data);
+    if (limit) return { error: limit };
+    const conflict = recurrenceConflict(data, outcome.recurrence);
+    if (conflict) return { error: conflict };
+  }
   if (triage) triage.status = 'done';
   if (!outcome.continues || !outcome.recurrence) {
     request.status = 'not_continued';
     request.outcomeNote = outcome.note;
-    return;
+    return {};
   }
   const patient: Patient = {
     id: uid(), requestId: id, name: request.name, age: request.age, phone: request.phone, guardianName: request.guardianName,
@@ -112,20 +156,38 @@ export function completeTriage(data: ClinicData, id: string, outcome: TriageOutc
   if (triage) triage.patientId = patient.id;
   data.notes.push({ id: uid(), patientId: patient.id, appointmentId: triage?.id, number: 0, date: triage?.date ?? today(), notes: outcome.note, evolution: 'Triagem realizada. Início do acompanhamento.', updatedAt: new Date().toISOString() });
   scheduleRecurring(data, patient, outcome.recurrence.startDate);
-  return patient;
+  return { value: patient };
 }
 
 /* ------------------------------------------------------------------ */
 /* Pacientes e agenda recorrente                                       */
 /* ------------------------------------------------------------------ */
 
+/** Erro quando o plano não comporta mais um paciente. Conta todos os cadastrados: dar alta não libera vaga. */
+export function patientLimitError(data: ClinicData) {
+  const limit = PLANS[data.plan].maxPatients;
+  if (limit !== undefined && data.patients.length >= limit) return `Você chegou ao limite de ${limit} pacientes do plano ${PLANS[data.plan].name}. Para cadastrar novos pacientes, mude para o plano Profissional.`;
+}
+
+/** Primeiro choque de um horário fixo com a agenda, nas datas que seriam lançadas. */
+function recurrenceConflict(data: ClinicData, recurrence: Recurrence, patientId?: string) {
+  const from = recurrence.startDate > today() ? recurrence.startDate : today();
+  const minutes = data.professional.availability.sessionMinutes;
+  const clashes = recurringDates(recurrence, from, addDays(today(), RECURRENCE_HORIZON_DAYS))
+    .map(date => findConflict(data.professional, data.appointments, date, recurrence.time, minutes, a => a.patientId === patientId && a.kind === 'session' && a.status === 'scheduled'))
+    .filter(Boolean);
+  if (clashes.length) return `Esse horário fixo bate com ${clashes.length} compromisso(s). Primeiro: ${clashes[0]}`;
+}
+
 function scheduleRecurring(data: ClinicData, patient: Patient, from: string) {
   if (!patient.recurrence || patient.status !== 'active') return;
   const until = addDays(today(), RECURRENCE_HORIZON_DAYS);
+  const minutes = data.professional.availability.sessionMinutes;
   const taken = new Set(data.appointments.filter(a => a.patientId === patient.id && a.kind === 'session').map(a => a.date));
   for (const date of recurringDates(patient.recurrence, from, until)) {
-    if (taken.has(date)) continue;
-    data.appointments.push({ id: uid(), kind: 'session', date, time: patient.recurrence.time, minutes: data.professional.availability.sessionMinutes, status: 'scheduled', patientId: patient.id, title: patient.name });
+    // Nunca sobrepõe: se outro compromisso ou bloqueio ocupou o horário, a data fica de fora.
+    if (taken.has(date) || findConflict(data.professional, data.appointments, date, patient.recurrence.time, minutes)) continue;
+    data.appointments.push({ id: uid(), kind: 'session', date, time: patient.recurrence.time, minutes, status: 'scheduled', patientId: patient.id, title: patient.name });
   }
 }
 
@@ -139,28 +201,35 @@ const removeFutureSessions = (data: ClinicData, patientId: string, from: string)
   data.appointments = data.appointments.filter(a => !(a.patientId === patientId && a.kind === 'session' && a.status === 'scheduled' && a.date >= from));
 };
 
-export function changeRecurrence(data: ClinicData, patientId: string, recurrence: Recurrence) {
+export function changeRecurrence(data: ClinicData, patientId: string, recurrence: Recurrence): Outcome {
   const patient = data.patients.find(p => p.id === patientId);
-  if (!patient) return;
+  if (!patient) return { error: 'Paciente não encontrado.' };
+  const conflict = recurrenceConflict(data, recurrence, patientId);
+  if (conflict) return { error: conflict };
   removeFutureSessions(data, patientId, today() > recurrence.startDate ? today() : recurrence.startDate);
   patient.recurrence = recurrence;
   scheduleRecurring(data, patient, recurrence.startDate > today() ? recurrence.startDate : today());
+  return {};
 }
 
-export function setPatientStatus(data: ClinicData, patientId: string, status: PatientStatus) {
+export function setPatientStatus(data: ClinicData, patientId: string, status: PatientStatus): Outcome {
   const patient = data.patients.find(p => p.id === patientId);
-  if (!patient) return;
+  if (!patient) return { error: 'Paciente não encontrado.' };
   patient.status = status;
   if (status === 'active') scheduleRecurring(data, patient, today());
   else removeFutureSessions(data, patientId, today());
+  return {};
 }
 
-export function addExtraSession(data: ClinicData, patientId: string, date: string, time: string) {
+export function addExtraSession(data: ClinicData, patientId: string, date: string, time: string): Outcome<Appointment> {
   const patient = data.patients.find(p => p.id === patientId);
-  if (!patient) return;
-  const appointment: Appointment = { id: uid(), kind: 'session', date, time, minutes: data.professional.availability.sessionMinutes, status: 'scheduled', patientId, title: patient.name };
+  if (!patient) return { error: 'Paciente não encontrado.' };
+  const minutes = data.professional.availability.sessionMinutes;
+  const conflict = findConflict(data.professional, data.appointments, date, time, minutes);
+  if (conflict) return { error: conflict };
+  const appointment: Appointment = { id: uid(), kind: 'session', date, time, minutes, status: 'scheduled', patientId, title: patient.name };
   data.appointments.push(appointment);
-  return appointment;
+  return { value: appointment };
 }
 
 export function setAppointmentStatus(data: ClinicData, appointmentId: string, status: AppointmentStatus) {
@@ -182,7 +251,7 @@ export function ensureNote(data: ClinicData, appointmentId: string) {
   if (!appointment?.patientId) return;
   if (appointment.status === 'scheduled') appointment.status = 'done';
   const numbered = data.notes.filter(n => n.patientId === appointment.patientId && n.number > 0);
-  const before = numbered.filter(n => `${n.date}` <= appointment.date).length;
+  const before = numbered.filter(n => n.date <= appointment.date).length;
   // Sessões registradas depois desta data andam uma posição.
   for (const note of numbered) if (note.date > appointment.date) note.number += 1;
   const note: SessionNote = { id: uid(), patientId: appointment.patientId, appointmentId, number: before + 1, date: appointment.date, notes: '', evolution: '', updatedAt: new Date().toISOString() };
@@ -197,11 +266,32 @@ export function saveNote(data: ClinicData, noteId: string, values: Pick<SessionN
 }
 
 /* ------------------------------------------------------------------ */
-/* Perfil                                                              */
+/* Perfil e conta                                                      */
 /* ------------------------------------------------------------------ */
 
 export function saveProfessional(data: ClinicData, values: Partial<Professional>) {
   data.professional = { ...data.professional, ...values };
 }
 
+export function setPlan(data: ClinicData, plan: PlanId) {
+  data.plan = plan;
+  if (!PLANS[plan].team) data.viewAs = undefined;
+}
+
+export function saveTeam(data: ClinicData, team: TeamMember[]) {
+  data.team = team;
+  if (data.viewAs && !team.some(m => m.id === data.viewAs && m.role === 'secretary')) data.viewAs = undefined;
+}
+
+export function setViewAs(data: ClinicData, memberId?: string) { data.viewAs = memberId; }
+
+export function saveAccount(data: ClinicData, values: Partial<AccountSettings>) {
+  data.account = { ...data.account, ...values };
+}
+
 export const slugify = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '').slice(0, 40) || 'profissional';
+/** Slug com hífens, usado nos links por demanda. */
+export const slugifyTopic = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/** Demonstração do plano Clínica: o painel está sendo visto pela secretária. */
+export const viewingAsSecretary = (data: ClinicData) => Boolean(data.viewAs && PLANS[data.plan].team && data.team.some(m => m.id === data.viewAs && m.role === 'secretary'));

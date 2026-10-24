@@ -1,6 +1,6 @@
 import { addDays, today, weekdayOf } from '@/lib/dates';
 import type { ClinicData } from '@/services/clinic';
-import { Appointment, Patient, Professional, SessionNote, TriageRequest } from '@/types';
+import { AccountSettings, Appointment, Patient, Professional, SessionNote, TeamAppointment, TeamMember, TriageRequest } from '@/types';
 
 /** Dados fictícios para a demonstração. As datas são relativas a hoje. */
 export const DEMO_SLUG = 'anaclara';
@@ -14,7 +14,15 @@ export const demoProfessional: Professional = {
   categories: ['Ansiedade', 'Família', 'Relacionamento / Casal', 'Luto', 'Autoestima', 'Trabalho e carreira'],
   modality: 'ambos',
   city: 'Salvador - BA',
-  bio: 'Atendo adultos em psicanálise, online e presencial. A triagem é uma conversa inicial de 30 minutos para entendermos juntos a sua demanda.',
+  headline: 'Psicanálise para adultos. Um espaço para falar do que pesa, no seu tempo.',
+  bio: 'Sou psicóloga clínica há 9 anos, com formação em psicanálise. Atendo adultos que chegam com ansiedade, questões familiares, conflitos nos relacionamentos e momentos de luto.\n\nNo consultório, o trabalho começa pela escuta: cada pessoa traz a sua história e o seu ritmo. Atendo presencialmente na Pituba e online para todo o Brasil.',
+  services: [
+    { id: 's1', name: 'Psicoterapia individual', description: 'Sessões semanais para adultos, online ou presenciais.', minutes: 50, price: 'R$ 180' },
+    { id: 's2', name: 'Terapia de casal', description: 'Para casais que querem reconstruir o diálogo.', minutes: 80, price: 'R$ 260' },
+    { id: 's3', name: 'Acompanhamento no luto', description: 'Apoio após a perda de alguém próximo.', minutes: 50, price: 'R$ 180' },
+  ],
+  bookingTitle: 'O que você procura?',
+  bookingIntro: 'Atendo adultos em psicanálise, online e presencial. A triagem é uma conversa inicial de 30 minutos para entendermos juntos a sua demanda.',
   availability: {
     windows: [
       { weekday: 0, enabled: false, start: '08:00', end: '12:00' },
@@ -29,9 +37,37 @@ export const demoProfessional: Professional = {
     sessionMinutes: 50,
     minNoticeHours: 12,
     horizonDays: 30,
-    blockedDates: [],
+    blocks: [],
   },
 };
+
+export const demoAccount: AccountSettings = {
+  email: 'anaclara@exemplo.com',
+  phone: '(71) 90000-0000',
+  notifyNewRequest: true,
+  notifyDailyAgenda: true,
+  remindPatients: true,
+  reminderHours: 24,
+  twoFactor: false,
+};
+
+/** Equipe fictícia, usada quando o plano Clínica está ativo. */
+export const demoTeam: TeamMember[] = [
+  { id: 'm1', name: 'Paulo Reis', email: 'paulo@exemplo.com', role: 'professional', profession: 'fisioterapia', status: 'active' },
+  { id: 'm2', name: 'Luísa Prado', email: 'luisa@exemplo.com', role: 'professional', profession: 'fonoaudiologia', status: 'active' },
+  { id: 'm3', name: 'Carla Souza', email: 'carla@exemplo.com', role: 'secretary', status: 'active' },
+];
+
+/** Agenda fictícia dos colegas para as próximas semanas. */
+export function buildTeamAppointments(): TeamAppointment[] {
+  const plan: [string, number, string, string][] = [['m1', 1, '08:00', 'Jorge Lima'], ['m1', 2, '10:00', 'Sandra Melo'], ['m1', 4, '15:00', 'Otávio Nery'], ['m2', 3, '09:00', 'Bia (7 anos)'], ['m2', 5, '14:00', 'Heitor (5 anos)']];
+  const out: TeamAppointment[] = [];
+  for (let week = 0; week < 8; week++) for (const [memberId, weekday, time, title] of plan) {
+    const date = addDays(nextWeekday(today(), weekday), 7 * week);
+    out.push({ id: `t-${memberId}-${date}-${time}`, memberId, date, time, minutes: 50, title, kind: 'session' });
+  }
+  return out;
+}
 
 /** Próxima data (a partir de `from`, inclusive) que cai no dia da semana pedido. */
 const nextWeekday = (from: string, weekday: number) => { let d = from; while (weekdayOf(d) !== weekday) d = addDays(d, 1); return d; };
@@ -84,6 +120,10 @@ export function buildSeed(): ClinicData {
   ];
   return {
     professional,
+    account: structuredClone(demoAccount),
+    plan: 'gratis',
+    team: structuredClone(demoTeam),
+    teamAppointments: buildTeamAppointments(),
     requests: [...pending, ...histories.map(h => h.request)],
     patients: histories.map(h => h.patient),
     appointments: [

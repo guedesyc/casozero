@@ -1,13 +1,13 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarPlus, Check, ChevronRight, NotebookPen, Printer, Repeat, Search } from 'lucide-react';
+import { CalendarPlus, Check, ChevronRight, FileDown, NotebookPen, Repeat, Search } from 'lucide-react';
 import { formatDayMonth, formatLong, formatShort, formatStamp, today, WEEKDAYS } from '@/lib/dates';
 import { PROFESSIONS } from '@/config/professions';
 import { addExtraSession, changeRecurrence, ClinicData, ensureNote, saveNote, setAppointmentStatus, setPatientStatus, useClinic } from '@/services/clinic';
 import { isPast } from '@/services/scheduling';
 import { Frequency, Patient, PatientStatus, SessionNote } from '@/types';
-import { APPOINTMENT_LABELS, Badge, Block, initials, PageTitle, PATIENT_LABELS } from './shell';
+import { APPOINTMENT_LABELS, Badge, Block, FormError, initials, PageTitle, PATIENT_LABELS } from './shell';
 import { Dialog } from './requests';
 
 type Update = ReturnType<typeof useClinic>['update'];
@@ -39,6 +39,7 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
   const [tab, setTab] = useState<'caderneta' | 'evolucao' | 'agenda' | 'dados'>('caderneta');
   const [openNote, setOpenNote] = useState<string | undefined>(sessionId);
   const [dialog, setDialog] = useState<'none' | 'recurrence' | 'extra'>('none');
+  const [statusError, setStatusError] = useState('');
   useEffect(() => { if (sessionId) { setOpenNote(sessionId); setTab('caderneta'); } }, [sessionId]);
   const notes = useMemo(() => data.notes.filter(n => n.patientId === id).sort((a, b) => b.number - a.number), [data.notes, id]);
   const appointments = useMemo(() => data.appointments.filter(a => a.patientId === id).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)), [data.appointments, id]);
@@ -56,8 +57,9 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
   return <section className="page detail">
     <Link href="/app/pacientes" className="back">← Pacientes</Link>
     <PageTitle eyebrow={`${patient.category} · desde ${formatStamp(patient.createdAt)}`} title={patient.name} text={<>{patient.age} anos · {patient.phone}{patient.guardianName && ` · responsável: ${patient.guardianName}`}</>}>
-      <select aria-label="Situação do paciente" value={patient.status} onChange={e => { const s = e.target.value as PatientStatus; if (s === 'active' || confirm(`Marcar como “${PATIENT_LABELS[s]}”? As sessões futuras serão retiradas da agenda.`)) update(d => setPatientStatus(d, patient.id, s)); }}>{(Object.keys(PATIENT_LABELS) as PatientStatus[]).map(s => <option key={s} value={s}>{PATIENT_LABELS[s]}</option>)}</select>
+      <select aria-label="Situação do paciente" value={patient.status} onChange={e => { const s = e.target.value as PatientStatus; if (s === 'active' || confirm(`Marcar como “${PATIENT_LABELS[s]}”? As sessões futuras serão retiradas da agenda.`)) setStatusError(update(d => setPatientStatus(d, patient.id, s)).error ?? ''); }}>{(Object.keys(PATIENT_LABELS) as PatientStatus[]).map(s => <option key={s} value={s}>{PATIENT_LABELS[s]}</option>)}</select>
     </PageTitle>
+    <FormError message={statusError} />
     <div className="patient-summary">
       <div><span>Horário fixo</span><strong>{recurrenceText(patient)}</strong>{patient.status === 'active' && <button className="text-link" onClick={() => setDialog('recurrence')}><Repeat size={13} /> Alterar</button>}</div>
       <div><span>Próxima {noun}</span><strong>{next ? `${formatDayMonth(next.date)}, ${next.time}` : '—'}</strong>{patient.status === 'active' && <button className="text-link" onClick={() => setDialog('extra')}><CalendarPlus size={13} /> Marcar avulsa</button>}</div>
@@ -131,7 +133,7 @@ function Evolution({ patient, notes, noun, professional }: { patient: Patient; n
   const [full, setFull] = useState(false);
   const ordered = notes.slice().sort((a, b) => a.number - b.number).filter(n => !query || `${n.notes} ${n.evolution}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="evolution">
-    <div className="toolbar no-print"><label className="search"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar nas anotações" /></label><label className="inline-check"><input type="checkbox" checked={full} onChange={e => setFull(e.target.checked)} /> Mostrar anotações completas</label><button className="secondary small" onClick={() => window.print()}><Printer size={14} /> Imprimir</button></div>
+    <div className="toolbar no-print"><label className="search"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar nas anotações" /></label><label className="inline-check"><input type="checkbox" checked={full} onChange={e => setFull(e.target.checked)} /> Mostrar anotações completas</label><button className="primary small" onClick={() => window.print()} title="Abre a impressão; escolha “Salvar como PDF” no destino"><FileDown size={14} /> Baixar PDF</button></div>
     <header className="print-only"><h2>Evolução — {patient.name}</h2><p>{professional} · emitido em {formatShort(today())}</p></header>
     {ordered.length ? <ol className="evo-timeline">{ordered.map(n => <li key={n.id}>
       <span className="timeline-dot">{n.number === 0 ? 'T' : n.number}</span>
@@ -148,20 +150,24 @@ function RecurrenceDialog({ patient, update, close }: { patient: Patient; update
   const [time, setTime] = useState(r?.time ?? '09:00');
   const [frequency, setFrequency] = useState<Frequency>(r?.frequency ?? 'weekly');
   const [startDate, setStartDate] = useState(today());
+  const [error, setError] = useState('');
   return <Dialog title="Alterar horário fixo" close={close}>
     <p className="muted">As sessões futuras ainda marcadas serão substituídas pelo novo horário. As já realizadas não mudam.</p>
     <div className="field-row"><label className="field"><span>Dia da semana</span><select value={weekday} onChange={e => setWeekday(Number(e.target.value))}>{WEEKDAYS.map((w, i) => <option key={w} value={i}>{w}</option>)}</select></label><label className="field"><span>Horário</span><input type="time" value={time} onChange={e => setTime(e.target.value)} /></label></div>
     <div className="field-row"><label className="field"><span>Frequência</span><select value={frequency} onChange={e => setFrequency(e.target.value as Frequency)}><option value="weekly">Semanal</option><option value="biweekly">Quinzenal</option></select></label><label className="field"><span>Valendo a partir de</span><input type="date" min={today()} value={startDate} onChange={e => setStartDate(e.target.value)} /></label></div>
-    <button className="primary full" onClick={() => { update(d => changeRecurrence(d, patient.id, { weekday, time, frequency, startDate })); close(); }}>Salvar novo horário</button>
+    <button className="primary full" onClick={() => { const r = update(d => changeRecurrence(d, patient.id, { weekday, time, frequency, startDate })); if (r.error) setError(r.error); else close(); }}>Salvar novo horário</button>
+    <FormError message={error} />
   </Dialog>;
 }
 
 function ExtraDialog({ patient, update, close }: { patient: Patient; update: Update; close: () => void }) {
   const [date, setDate] = useState(today());
   const [time, setTime] = useState(patient.recurrence?.time ?? '09:00');
+  const [error, setError] = useState('');
   return <Dialog title="Marcar sessão avulsa" close={close}>
     <p className="muted">Para reposição ou uma sessão extra fora do horário fixo.</p>
     <div className="field-row"><label className="field"><span>Data</span><input type="date" value={date} onChange={e => setDate(e.target.value)} /></label><label className="field"><span>Horário</span><input type="time" value={time} onChange={e => setTime(e.target.value)} /></label></div>
-    <button className="primary full" disabled={!date || !time} onClick={() => { update(d => addExtraSession(d, patient.id, date, time)); close(); }}>Lançar na agenda</button>
+    <button className="primary full" disabled={!date || !time} onClick={() => { const r = update(d => addExtraSession(d, patient.id, date, time)); if (r.error) setError(r.error); else close(); }}>Lançar na agenda</button>
+    <FormError message={error} />
   </Dialog>;
 }
