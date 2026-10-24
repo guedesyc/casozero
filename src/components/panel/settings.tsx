@@ -296,6 +296,12 @@ export function SubscriptionPage({ data, update }: { data: ClinicData; update: U
   const [seats, setSeats] = useState(Math.max(MIN_CLINIC_SEATS, data.team.filter(m => m.role === 'professional').length + 1));
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState('');
+  // Retorno do checkout da Stripe.
+  useEffect(() => {
+    const checkout = new URLSearchParams(window.location.search).get('checkout');
+    if (checkout === 'success') setNotice('Pagamento confirmado. O plano é atualizado assim que a Stripe avisa, em poucos segundos.');
+    if (checkout === 'cancelled') setNotice('Pagamento cancelado. Nada foi cobrado.');
+  }, []);
   useEffect(() => { (async () => {
     if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser(); if (!user) return;
@@ -309,17 +315,38 @@ export function SubscriptionPage({ data, update }: { data: ClinicData; update: U
   async function choose() {
     if (!selected) return;
     setNotice('');
-    // Sem Supabase/Stripe: troca local para testar os recursos de cada plano.
-    if (!supabase || selected === 'gratis') {
-      const freeLimit = PLANS.gratis.maxPatients ?? 0;
+    const freeLimit = PLANS.gratis.maxPatients ?? 0;
+    const applyLocally = () => {
       if (selected === 'gratis' && total >= freeLimit) setNotice(`Você tem ${total} pacientes cadastrados. No Grátis o limite é ${freeLimit}: todos continuam acessíveis, mas não dá para cadastrar novos.`);
-      update(d => setPlan(d, selected)); setSelected(undefined); return;
-    }
+      update(d => setPlan(d, selected)); setSelected(undefined);
+    };
+    // Sem Supabase/Stripe: troca local para testar os recursos de cada plano.
+    if (!supabase) { applyLocally(); return; }
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     const response = await fetch('/api/stripe/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` }, body: JSON.stringify({ plan: selected, seats }) });
     const result = await response.json();
-    if (result.url) window.location.href = result.url; else { setNotice(result.error || 'Não foi possível abrir o checkout.'); setLoading(false); }
+    if (result.url) { window.location.href = result.url; return; }
+    setLoading(false);
+    if (result.free) { applyLocally(); return; }
+    if (result.cancelAt !== undefined) {
+      setSelected(undefined);
+      setNotice(`Assinatura cancelada. Você continua no plano ${plan.name}${result.cancelAt ? ` até ${formatShort(result.cancelAt.slice(0, 10))}` : ' até o fim do período pago'} e depois passa para o Grátis.`);
+      return;
+    }
+    if (result.switched) {
+      setSelected(undefined);
+      setNotice(`Plano alterado para ${PLANS[selected].name}. A diferença proporcional entra na próxima fatura.`);
+      // O webhook grava o novo plano em poucos segundos; espera por ele antes de mudar a tela.
+      for (let i = 0; i < 10 && user; i++) {
+        await new Promise(r => setTimeout(r, 1500));
+        const { data: row } = await supabase.from('subscriptions').select('plan_id').eq('user_id', user.id).eq('status', 'active').order('updated_at', { ascending: false }).limit(1).maybeSingle();
+        if (row?.plan_id === selected) { update(d => setPlan(d, selected)); return; }
+      }
+      return;
+    }
+    setNotice(result.error || 'Não foi possível abrir o checkout.');
   }
   return <section className="page">
     <PageTitle eyebrow="Conta" title="Assinatura" text="Todos os recursos estão em todos os planos. O que muda é o limite de pacientes e a equipe." />
