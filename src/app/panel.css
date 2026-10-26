@@ -156,3 +156,7 @@
 .field.narrow{max-width:260px}
 @media(max-width:900px){.panel-main .viewas-banner{margin:12px 18px 0}}
 .calendar-head h2,.slot-head strong,.slot-day,.big-date,.note-head small{text-transform:none!important}
+
+/* Login: link de recuperação de senha */
+.auth-forgot{display:block;text-align:right;font-size:12px;color:var(--muted);text-decoration:underline;margin:-6px 0 4px}
+.auth-forgot:hover{color:#111}
