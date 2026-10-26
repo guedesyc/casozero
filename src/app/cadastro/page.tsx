@@ -6,10 +6,11 @@ import { supabase } from '@/lib/supabase';
 import { PROFESSIONS } from '@/config/professions';
 import { ProfessionChoice, ProfessionPicker } from '@/components/ui/profession-picker';
 import { loadClinic, saveClinic, saveProfessional, slugify } from '@/services/clinic';
+import { ConfirmEmailStep } from '@/components/ui/email-confirm';
 import { Modality } from '@/types';
 
 export default function SignupPage() {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [account, setAccount] = useState({ name: '', email: '', password: '', confirm: '' });
   const [choice, setChoice] = useState<ProfessionChoice>({ profession: 'psicologia', specialties: [], categories: [] });
   const [details, setDetails] = useState<{ councilNumber: string; modality: Modality; city: string }>({ councilNumber: '', modality: 'ambos', city: '' });
@@ -28,19 +29,20 @@ export default function SignupPage() {
     if (!choice.categories.length) { setNotice('Escolha ao menos uma demanda que você atende.'); return; }
     setLoading(true); setNotice('');
     const profile = { name: account.name, slug: slugify(account.name), ...choice, councilNumber: details.councilNumber ? `${profession.council ?? ''} ${details.councilNumber}`.trim() : undefined, modality: details.modality, city: details.city || undefined };
-    // O perfil local alimenta o protótipo; com Supabase ele também vai para os metadados do usuário.
-    const data = loadClinic(); saveProfessional(data, profile); saveClinic(data);
-    if (!supabase) { window.location.href = '/app'; return; }
+    // Sem Supabase (demonstração) o perfil vai direto para o navegador. Com Supabase ele fica nos
+    // metadados do usuário e o painel monta a conta vazia no primeiro acesso.
+    if (!supabase) { const data = loadClinic(); saveProfessional(data, profile); saveClinic(data); window.location.href = '/app'; return; }
     const { data: result, error } = await supabase.auth.signUp({ email: account.email, password: account.password, options: { emailRedirectTo: `${window.location.origin}/cadastro/confirmado`, data: { full_name: account.name, profession: choice.profession, specialties: choice.specialties, categories: choice.categories, council_number: profile.councilNumber, modality: details.modality, city: details.city } } });
-    if (error) { setNotice(error.message); setLoading(false); return; }
+    if (error) { setNotice(/password/i.test(error.message) ? 'Senha fraca: use pelo menos 8 caracteres, misturando letras e números.' : /rate|seconds|limit/i.test(error.message) ? 'Muitas tentativas seguidas. Aguarde um minuto e tente de novo.' : 'Não foi possível criar o cadastro. Confira os dados e tente de novo.'); setLoading(false); return; }
+    // A conta só vale depois da confirmação do e-mail.
     if (result.session) await supabase.auth.signOut();
-    window.location.href = '/cadastro/confirmado';
+    setLoading(false); setStep(3);
   }
 
   return <main className="auth-page"><section className="auth-card auth-card-wide signup-card">
     <Link href="/" className="auth-brand">CasoZero</Link>
-    <p className="eyebrow">Novo cadastro · etapa {step} de 2</p>
-    {step === 1 ? <>
+    {step < 3 && <p className="eyebrow">Novo cadastro · etapa {step} de 2</p>}
+    {step === 3 ? <ConfirmEmailStep email={account.email} onChangeEmail={() => setStep(1)} /> : step === 1 ? <>
       <h1>Comece sua rotina.</h1>
       <p className="auth-lead">Crie seu acesso. Na próxima etapa você conta qual é a sua área.</p>
       <form onSubmit={next}>
@@ -64,6 +66,6 @@ export default function SignupPage() {
       </form>
     </>}
     {notice && <p className="auth-notice">{notice}</p>}
-    <p className="auth-switch">Já possui uma conta? <Link href="/login">Entrar</Link></p>
+    {step < 3 && <p className="auth-switch">Já possui uma conta? <Link href="/login">Entrar</Link></p>}
   </section></main>;
 }

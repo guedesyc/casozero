@@ -34,9 +34,8 @@ export default function ConfirmedPage() {
       <div className="confirmed-check"><Check size={30} /></div>
       <p className="eyebrow">E-mail confirmado</p>
       <h1>Conta ativada.</h1>
-      <p className="auth-lead">Você já pode usar o CasoZero. Comece pelo plano Grátis ou escolha outro quando quiser.</p>
+      <p className="auth-lead">Tudo pronto. Sua conta começa no plano Grátis, com todos os recursos liberados.</p>
       <Link href="/app" className="primary full">Entrar no painel</Link>
-      <Link href="/precos" className="auth-back">Ver planos</Link>
     </>}
     {phase === 'invalid' && <>
       <p className="eyebrow">Link inválido</p>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { addDays, today } from '@/lib/dates';
 import { PLANS, PlanId } from '@/config/plans';
 import { buildSeed, buildTeamAppointments, demoAccount, demoProfessional, demoTeam } from '@/mocks/data';
+import { ProfessionId, PROFESSIONS } from '@/config/professions';
 import { AccountSettings, Appointment, AppointmentStatus, Patient, PatientStatus, Professional, Recurrence, SessionNote, TeamAppointment, TeamMember, TriageRequest } from '@/types';
 import { findConflict, RECURRENCE_HORIZON_DAYS, recurringDates } from './scheduling';
 
@@ -24,13 +25,62 @@ export interface ClinicData {
   patients: Patient[];
   appointments: Appointment[];
   notes: SessionNote[];
+  /** Conta real: o aviso de boas-vindas do plano Grátis já foi visto. */
+  welcomeSeen?: boolean;
 }
 
 /** Resultado das operações que podem ser recusadas por conflito de horário. */
 export type Outcome<T = undefined> = { error?: string; value?: T };
 
-const KEY = 'casozero-saude-v1';
+const BASE_KEY = 'casozero-saude-v1';
+const OWNER_KEY = 'casozero-saude-owner';
 const EVENT = 'casozero-saude-change';
+
+/** Usuário do Supabase dono dos dados. Sem ele, o app está em modo demonstração. */
+export interface ClinicOwner { id: string; email?: string; metadata: Record<string, unknown>; }
+let owner: ClinicOwner | null = null;
+
+/** Liga o painel aos dados do usuário logado (cada conta tem seu próprio armazenamento). */
+export function setClinicOwner(next: ClinicOwner | null) {
+  owner = next;
+  try { if (next) window.localStorage.setItem(OWNER_KEY, next.id); } catch { /* ignore */ }
+  window.dispatchEvent(new Event(EVENT));
+}
+
+/**
+ * Chave dos dados. Conta real: uma por usuário. A página pública aberta neste
+ * navegador usa a última conta que entrou aqui (até os dados irem ao Supabase).
+ */
+function storageKey() {
+  let id = owner?.id;
+  if (!id) try { id = window.localStorage.getItem(OWNER_KEY) ?? undefined; } catch { /* ignore */ }
+  return id ? `${BASE_KEY}:${id}` : BASE_KEY;
+}
+const isRealAccount = () => storageKey() !== BASE_KEY;
+
+const text = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : undefined;
+const list = (value: unknown) => Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+
+/** Conta nova: perfil vindo do cadastro, agenda vazia e plano Grátis. Nada fictício. */
+export function buildBlank(user: ClinicOwner): ClinicData {
+  const m = user.metadata;
+  const profession = (text(m.profession) && text(m.profession)! in PROFESSIONS ? text(m.profession) : 'psicologia') as ProfessionId;
+  const name = text(m.full_name) ?? user.email?.split('@')[0] ?? 'Profissional';
+  const modality = m.modality === 'online' || m.modality === 'presencial' ? m.modality : 'ambos';
+  return {
+    professional: {
+      slug: slugify(name), name, profession,
+      councilNumber: text(m.council_number), specialties: list(m.specialties), categories: list(m.categories),
+      modality, city: text(m.city), services: [],
+      bookingTitle: 'O que você procura?', bookingIntro: '',
+      availability: { ...structuredClone(demoProfessional.availability), blocks: [] },
+    },
+    account: { ...structuredClone(demoAccount), email: user.email ?? '', phone: '' },
+    plan: 'gratis', team: [], teamAppointments: [],
+    requests: [], patients: [], appointments: [], notes: [],
+    welcomeSeen: false,
+  };
+}
 export const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
 /** Completa dados salvos por versões anteriores do protótipo. */
@@ -43,14 +93,15 @@ function migrate(data: ClinicData) {
   p.bookingIntro ??= p.bio ?? demoProfessional.bookingIntro;
   data.account ??= structuredClone(demoAccount);
   data.plan = data.plan in PLANS ? data.plan : 'gratis';
-  data.team ??= structuredClone(demoTeam);
-  data.teamAppointments ??= buildTeamAppointments();
+  const real = isRealAccount();
+  data.team ??= real ? [] : structuredClone(demoTeam);
+  data.teamAppointments ??= real ? [] : buildTeamAppointments();
 }
 
 export function loadClinic(): ClinicData {
   let data: ClinicData | null = null;
-  try { const saved = window.localStorage.getItem(KEY); if (saved) data = JSON.parse(saved); } catch { /* volta para a demonstração */ }
-  if (!data?.professional) data = buildSeed();
+  try { const saved = window.localStorage.getItem(storageKey()); if (saved) data = JSON.parse(saved); } catch { /* volta para o início */ }
+  if (!data?.professional) data = owner ? buildBlank(owner) : buildSeed();
   migrate(data);
   rollRecurrences(data);
   return data;
@@ -59,12 +110,12 @@ export function loadClinic(): ClinicData {
 /** Salva; devolve false quando o navegador recusa (ex.: imagens grandes demais). */
 export function saveClinic(data: ClinicData) {
   let ok = true;
-  try { window.localStorage.setItem(KEY, JSON.stringify(data)); } catch { ok = false; }
+  try { window.localStorage.setItem(storageKey(), JSON.stringify(data)); } catch { ok = false; }
   window.dispatchEvent(new Event(EVENT));
   return ok;
 }
 
-export function resetClinic() { try { window.localStorage.removeItem(KEY); } catch { /* ignore */ } window.dispatchEvent(new Event(EVENT)); }
+export function resetClinic() { try { window.localStorage.removeItem(storageKey()); } catch { /* ignore */ } window.dispatchEvent(new Event(EVENT)); }
 
 /** Hook do estado da clínica, sincronizado entre abas (link público ↔ painel). */
 export function useClinic() {
@@ -72,7 +123,7 @@ export function useClinic() {
   useEffect(() => {
     const refresh = () => setData(loadClinic());
     refresh();
-    const onStorage = (e: StorageEvent) => { if (e.key === KEY || e.key === null) refresh(); };
+    const onStorage = (e: StorageEvent) => { if (e.key === storageKey() || e.key === null) refresh(); };
     window.addEventListener('storage', onStorage);
     window.addEventListener(EVENT, refresh);
     return () => { window.removeEventListener('storage', onStorage); window.removeEventListener(EVENT, refresh); };
@@ -284,6 +335,8 @@ export function saveTeam(data: ClinicData, team: TeamMember[]) {
 }
 
 export function setViewAs(data: ClinicData, memberId?: string) { data.viewAs = memberId; }
+
+export function markWelcomeSeen(data: ClinicData) { data.welcomeSeen = true; }
 
 export function saveAccount(data: ClinicData, values: Partial<AccountSettings>) {
   data.account = { ...data.account, ...values };

@@ -2,11 +2,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
-import { CalendarDays, Clock3, CreditCard, ExternalLink, Inbox, LayoutDashboard, Link2, Menu, PanelsTopLeft, Settings, UserRound, Users, UsersRound, X } from 'lucide-react';
-import { PLANS } from '@/config/plans';
+import { CalendarDays, Check, Clock3, CreditCard, ExternalLink, Inbox, LayoutDashboard, Link2, Menu, PanelsTopLeft, Settings, Sparkles, UserRound, Users, UsersRound, X } from 'lucide-react';
+import { formatBRL, PLANS } from '@/config/plans';
 import { PROFESSIONS } from '@/config/professions';
 import { supabase } from '@/lib/supabase';
-import { ClinicData, resetClinic, setViewAs, useClinic, viewingAsSecretary } from '@/services/clinic';
+import { ClinicData, markWelcomeSeen, resetClinic, setClinicOwner, setViewAs, useClinic, viewingAsSecretary } from '@/services/clinic';
 import { Avatar } from '@/components/public/profile';
 import { AppointmentStatus, PatientStatus, RequestStatus } from '@/types';
 
@@ -54,7 +54,12 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!supabase) { setAuth('demo'); return; }
-    supabase.auth.getUser().then(({ data: { user } }) => { if (!user) window.location.href = '/login'; else setAuth('ok'); });
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) { window.location.href = '/login'; return; }
+      // Cada conta usa os próprios dados; uma conta nova começa vazia.
+      setClinicOwner({ id: user.id, email: user.email, metadata: user.user_metadata ?? {} });
+      setAuth('ok');
+    });
   }, []);
   useEffect(() => setOpen(false), [pathname]);
   if (auth === 'checking' || !data) return <main className="app-loading">Carregando…</main>;
@@ -87,5 +92,30 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
         ? <section className="page empty"><h1>Acesso restrito</h1><p className="muted">A secretária acessa apenas a agenda.</p><Link className="primary small" href="/app/agenda">Abrir agenda</Link></section>
         : children(data, update)}
     </main>
+    {auth === 'ok' && !secretary && data.welcomeSeen === false && <WelcomeFree close={() => update(d => markWelcomeSeen(d))} name={pro.name} />}
+  </div>;
+}
+
+/** Primeiro acesso de uma conta real: explica o plano Grátis e o limite de pacientes. */
+function WelcomeFree({ name, close }: { name: string; close: () => void }) {
+  const free = PLANS.gratis;
+  const pro = PLANS.profissional;
+  return <div className="modal" role="dialog" aria-modal="true" aria-label="Boas-vindas">
+    <div className="modal-card welcome-card">
+      <div className="welcome-icon"><Sparkles size={22} /></div>
+      <p className="eyebrow">Plano Gratuito</p>
+      <h2>Boas-vindas ao CasoZero, {name.split(' ')[0]}!</h2>
+      <p>Sua conta está no <b>plano Gratuito</b>, com todos os recursos liberados para <b>até {free.maxPatients} pacientes cadastrados</b>.</p>
+      <ul className="welcome-list">
+        <li><Check size={15} /> Página pública e agendamento de triagem</li>
+        <li><Check size={15} /> Agenda, horários fixos e caderneta de sessões</li>
+        <li><Check size={15} /> Evolução de cada paciente</li>
+      </ul>
+      <p className="welcome-limit">Ao chegar a {free.maxPatients} pacientes, para cadastrar novos você assina o <b>plano {pro.name}</b> por <b>{formatBRL(pro.price)}/mês</b>, sem limite de pacientes.</p>
+      <div className="welcome-actions">
+        <button className="primary" onClick={close}>Começar a usar</button>
+        <Link className="secondary" href="/app/configuracoes/assinatura" onClick={close}>Ver o plano {pro.name}</Link>
+      </div>
+    </div>
   </div>;
 }
