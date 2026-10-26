@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CalendarCheck, Clock3, MapPin, Monitor } from 'lucide-react';
 import { PROFESSIONS } from '@/config/professions';
+import { formatMoney } from '@/config/plans';
 import { ClinicData, slugifyTopic, useClinic } from '@/services/clinic';
 import { Professional } from '@/types';
 import Booking from './booking';
@@ -36,6 +37,7 @@ export function ProHeader({ professional, compact = false }: { professional: Pro
 export function PublicProfile({ data }: { data: ClinicData }) {
   const p = data.professional;
   const booking = `/${p.slug}/agendar`;
+  const services = p.services.filter(s => s.name.trim());
   return <main className="profile-page">
     <div className={`profile-cover ${p.cover ? '' : 'empty'}`} style={p.cover ? { backgroundImage: `url(${p.cover})` } : undefined} />
     <div className="profile-wrap">
@@ -47,9 +49,9 @@ export function PublicProfile({ data }: { data: ClinicData }) {
 
       {p.bio && <section className="profile-section"><h2>Sobre</h2>{p.bio.split(/\n+/).map((paragraph, i) => <p key={i}>{paragraph}</p>)}</section>}
 
-      {p.services.length > 0 && <section className="profile-section"><h2>Serviços</h2><div className="service-grid">{p.services.map(s => <article key={s.id} className="service-card">
+      {services.length > 0 && <section className="profile-section"><h2>Serviços</h2><div className="service-grid">{services.map(s => <article key={s.id} className="service-card">
         <h3>{s.name}</h3>{s.description && <p>{s.description}</p>}
-        <footer>{s.minutes ? <span><Clock3 size={13} /> {s.minutes} min</span> : <span />}{s.price && <strong>{s.price}</strong>}</footer>
+        <footer>{s.minutes ? <span><Clock3 size={13} /> {s.minutes} min</span> : <span />}{formatMoney(s.price) && <small className="service-price">Triagem · <b>{formatMoney(s.price)}</b></small>}</footer>
       </article>)}</div></section>}
 
       {p.categories.length > 0 && <section className="profile-section"><h2>Atendo pessoas que procuram ajuda com</h2><div className="chips">{p.categories.map(c => <Link key={c} className="chip" href={`${booking}/${slugifyTopic(c)}`}>{c}</Link>)}</div></section>}

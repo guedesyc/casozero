@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useState } from 'react';
 import { ArrowRight, Check, Copy, Download, ExternalLink, Eye, ImagePlus, Loader2, LogOut, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { PROFESSION_LIST, PROFESSIONS, ProfessionId } from '@/config/professions';
-import { PLANS, PlanId, formatBRL, priceLabel, toPlanId } from '@/config/plans';
+import { PLANS, PlanId, formatBRL, formatMoney, priceLabel, toPlanId } from '@/config/plans';
 import { MIN_CLINIC_SEATS } from '@/config/stripe';
 import { formatShort, iso, today, WEEKDAYS } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
@@ -151,7 +151,7 @@ export function PublicPageEditor({ data, update }: { data: ClinicData; update: U
     </Block>
     <div className="two-cols spaced-grid">
       <Block title="Apresentação">
-        <label className="field"><span>Descrição <small>Uma frase abaixo do seu nome</small></span><input value={value.headline ?? ''} onChange={e => setValue({ ...value, headline: e.target.value })} placeholder="Ex.: Psicanálise para adultos, online e presencial." maxLength={140} /></label>
+        <label className="field"><span>Descrição <small>Uma frase abaixo do seu nome</small></span><input value={value.headline ?? ''} onChange={e => setValue({ ...value, headline: e.target.value })} placeholder={`Ex.: ${PROFESSIONS[value.profession].examples.headline}`} maxLength={140} /></label>
         <label className="field"><span>Biografia</span><textarea rows={9} value={value.bio ?? ''} onChange={e => setValue({ ...value, bio: e.target.value })} placeholder="Sua formação, experiência e como você trabalha." /></label>
       </Block>
       <Block title="Texto do agendamento">
@@ -162,10 +162,10 @@ export function PublicPageEditor({ data, update }: { data: ClinicData; update: U
     </div>
     <Block title="Serviços" className="spaced" action={<button className="secondary small" onClick={() => setValue({ ...value, services: [...value.services, { id: uid(), name: '' }] })}><Plus size={14} /> Adicionar serviço</button>}>
       {value.services.length ? <div className="service-editor">{value.services.map(s => <div key={s.id} className="service-row">
-        <label className="field grow"><span>Nome</span><input value={s.name} onChange={e => setService(s.id, { name: e.target.value })} placeholder="Ex.: Psicoterapia individual" /></label>
+        <label className="field grow"><span>Nome</span><input value={s.name} onChange={e => setService(s.id, { name: e.target.value })} placeholder={`Ex.: ${PROFESSIONS[value.profession].examples.serviceName}`} /></label>
         <label className="field"><span>Duração (min)</span><input type="number" min={10} step={5} value={s.minutes ?? ''} onChange={e => setService(s.id, { minutes: e.target.value ? Number(e.target.value) : undefined })} /></label>
-        <label className="field"><span>Valor <small>Opcional</small></span><input value={s.price ?? ''} onChange={e => setService(s.id, { price: e.target.value })} placeholder="R$ 0,00" /></label>
-        <label className="field full-row"><span>Descrição</span><input value={s.description ?? ''} onChange={e => setService(s.id, { description: e.target.value })} /></label>
+        <label className="field"><span>Valor da triagem <small>Opcional</small></span><input inputMode="decimal" value={s.price ?? ''} onChange={e => setService(s.id, { price: e.target.value })} onBlur={e => setService(s.id, { price: formatMoney(e.target.value) })} placeholder="R$ 0,00" /></label>
+        <label className="field full-row"><span>Descrição</span><input value={s.description ?? ''} onChange={e => setService(s.id, { description: e.target.value })} placeholder={`Ex.: ${PROFESSIONS[value.profession].examples.serviceDescription}`} /></label>
         <button className="icon-button" aria-label="Remover serviço" onClick={() => setValue({ ...value, services: value.services.filter(x => x.id !== s.id) })}><Trash2 size={15} /></button>
       </div>)}</div> : <p className="muted">Nenhum serviço cadastrado.</p>}
     </Block>
@@ -219,20 +219,11 @@ const DEMO_SESSIONS = [
 
 export function AccountPage({ data, update }: { data: ClinicData; update: Update }) {
   const [value, setValue] = useState<AccountSettings>(data.account);
-  const [password, setPassword] = useState({ current: '', next: '', confirm: '' });
-  const [passwordStatus, setPasswordStatus] = useState('');
   const [sessions, setSessions] = useState(DEMO_SESSIONS);
+  const [loginEmail, setLoginEmail] = useState(data.account.email);
   const dirty = JSON.stringify(value) !== JSON.stringify(data.account);
-  useEffect(() => { supabase?.auth.getUser().then(({ data: { user } }) => { if (user?.email) setValue(v => ({ ...v, email: user.email! })); }); }, []);
+  useEffect(() => { supabase?.auth.getUser().then(({ data: { user } }) => { if (user?.email) setLoginEmail(user.email); }); }, []);
 
-  async function changePassword() {
-    if (password.next.length < 8) { setPasswordStatus('A nova senha precisa de pelo menos 8 caracteres.'); return; }
-    if (password.next !== password.confirm) { setPasswordStatus('As senhas não conferem.'); return; }
-    if (!supabase) { setPasswordStatus('Senha alterada (demonstração: nada foi enviado).'); setPassword({ current: '', next: '', confirm: '' }); return; }
-    const { error } = await supabase.auth.updateUser({ password: password.next });
-    setPasswordStatus(error ? error.message : 'Senha alterada.');
-    if (!error) setPassword({ current: '', next: '', confirm: '' });
-  }
   function exportData() {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
@@ -248,17 +239,11 @@ export function AccountPage({ data, update }: { data: ClinicData; update: Update
     <div className="two-cols">
       <div className="stack">
         <Block title="Dados de acesso">
-          <label className="field"><span>E-mail de login</span><input type="email" value={value.email} onChange={e => setValue({ ...value, email: e.target.value })} /></label>
+          <label className="field"><span>E-mail de login</span><input type="email" value={loginEmail} readOnly /></label>
           <label className="field"><span>Celular <small>Para avisos e recuperação da conta</small></span><input type="tel" value={value.phone} onChange={e => setValue({ ...value, phone: e.target.value })} /></label>
         </Block>
-        <Block title="Alterar senha">
-          <label className="field"><span>Senha atual</span><input type="password" autoComplete="current-password" value={password.current} onChange={e => setPassword({ ...password, current: e.target.value })} /></label>
-          <div className="field-row">
-            <label className="field"><span>Nova senha</span><input type="password" autoComplete="new-password" value={password.next} onChange={e => setPassword({ ...password, next: e.target.value })} /></label>
-            <label className="field"><span>Confirmar</span><input type="password" autoComplete="new-password" value={password.confirm} onChange={e => setPassword({ ...password, confirm: e.target.value })} /></label>
-          </div>
-          <button className="secondary small" disabled={!password.next} onClick={changePassword}>Alterar senha</button>
-          {passwordStatus && <p className="muted status-line">{passwordStatus}</p>}
+        <Block title="Senha">
+          <p className="muted">Para trocar a senha, use <b>Esqueci minha senha</b> na tela de login. Enviamos um link para o seu e-mail e a nova senha é criada por ele.</p>
         </Block>
       </div>
       <div className="stack">

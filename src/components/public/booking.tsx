@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { AlertCircle, ArrowLeft, ArrowRight, CalendarCheck, Check } from 'lucide-react';
 import { formatLong } from '@/lib/dates';
+import { PROFESSIONS } from '@/config/professions';
 import { ClinicData, slugifyTopic, submitRequest, useClinic } from '@/services/clinic';
 import { availableDates, freeSlots } from '@/services/scheduling';
 import { Slot, SlotPicker } from '@/components/ui/slot-picker';
@@ -36,6 +37,7 @@ export default function Booking({ data, update, topic }: { data: ClinicData; upd
     ...(!slot ? [['slot', 'o horário da triagem'] as [Stage, string]] : []),
   ];
   const first = professional.name.split(' ')[0];
+  const examples = PROFESSIONS[professional.profession].examples;
 
   function send() {
     if (!slot || !consent || missing.length) return;
@@ -62,8 +64,8 @@ export default function Booking({ data, update, topic }: { data: ClinicData; upd
       <h1>{professional.bookingTitle || 'O que você procura?'}</h1>
       {professional.bookingIntro && <p className="lead">{professional.bookingIntro}</p>}
       <div className="field"><span>Escolha o assunto mais próximo</span><div className="chips">{professional.categories.map(c => <button type="button" key={c} className={need.category === c ? 'chip on' : 'chip'} onClick={() => setNeed({ ...need, category: need.category === c ? '' : c })}>{c}</button>)}</div></div>
-      <label className="field"><span>Conte com suas palavras o que você gostaria de tratar</span><textarea rows={4} value={need.concern} onChange={e => setNeed({ ...need, concern: e.target.value })} placeholder="Não precisa de detalhes. O suficiente para a primeira conversa." /></label>
-      <label className="field"><span>O que você imagina ou espera desse acompanhamento? <small>Opcional</small></span><textarea rows={3} value={need.expectation} onChange={e => setNeed({ ...need, expectation: e.target.value })} placeholder="Ex.: entender melhor o que sinto, voltar a correr sem dor…" /></label>
+      <label className="field"><span>Conte com suas palavras o que você gostaria de tratar</span><textarea rows={4} value={need.concern} onChange={e => setNeed({ ...need, concern: e.target.value })} placeholder={`Ex.: ${examples.concern}`} /></label>
+      <label className="field"><span>O que você imagina ou espera desse acompanhamento? <small>Opcional</small></span><textarea rows={3} value={need.expectation} onChange={e => setNeed({ ...need, expectation: e.target.value })} placeholder={`Ex.: ${examples.expectation}`} /></label>
       {professional.modality === 'ambos' && <div className="field"><span>Como prefere ser atendido(a)?</span><div className="segmented">{(['online', 'presencial'] as const).map(m => <button type="button" key={m} className={need.modality === m ? 'active' : ''} onClick={() => setNeed({ ...need, modality: need.modality === m ? '' : m })}>{m === 'online' ? 'Online' : 'Presencial'}</button>)}</div></div>}
       <div className="button-row end"><button className="primary" onClick={() => go('about')}>Continuar <ArrowRight size={18} /></button></div>
     </>}

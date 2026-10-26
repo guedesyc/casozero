@@ -25,3 +25,13 @@ export const LEGACY_PLAN_IDS: Record<string, PlanId> = { caso_zero: 'gratis', ca
 export const toPlanId = (value?: string | null): PlanId | undefined => !value ? undefined : value in PLANS ? value as PlanId : LEGACY_PLAN_IDS[value];
 export const formatBRL = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 export const priceLabel = (plan: Plan) => plan.price === 0 ? 'Grátis' : `${formatBRL(plan.price)}/mês${plan.perProfessional ? ' por profissional' : ''}`;
+
+/** Valor digitado livremente ("60", "60,00", "R$ 1.200,50") → "R$ 60,00". Sem número, devolve o texto como veio. */
+export function formatMoney(value?: string) {
+  const raw = (value ?? '').replace(/R\$|\s/g, '');
+  if (!raw) return '';
+  // Vírgula é decimal; ponto em grupos de 3 dígitos ("1.200") é separador de milhar.
+  const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : /^\d{1,3}(\.\d{3})+$/.test(raw) ? raw.replace(/\./g, '') : raw;
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? formatBRL(amount) : value!.trim();
+}

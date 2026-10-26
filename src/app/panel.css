@@ -178,3 +178,11 @@
 .welcome-list li{display:flex;gap:8px;align-items:center}
 .welcome-limit{background:#f6f4ef;border-radius:8px;padding:10px 12px}
 .welcome-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+
+/* Foto sobre a capa: a linha da foto não pode bloquear os botões da capa */
+.photo-row{pointer-events:none}
+.photo-row>*{pointer-events:auto}
+.cover-preview{align-items:flex-start}
+.service-price{font-size:12px;color:#555}
+.service-price b{color:#111}
+.service-row .field:nth-child(3) span{white-space:nowrap}
