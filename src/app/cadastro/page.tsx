@@ -31,7 +31,7 @@ export default function SignupPage() {
     // O perfil local alimenta o protótipo; com Supabase ele também vai para os metadados do usuário.
     const data = loadClinic(); saveProfessional(data, profile); saveClinic(data);
     if (!supabase) { window.location.href = '/app'; return; }
-    const { data: result, error } = await supabase.auth.signUp({ email: account.email, password: account.password, options: { data: { full_name: account.name, profession: choice.profession, specialties: choice.specialties, categories: choice.categories, council_number: profile.councilNumber, modality: details.modality, city: details.city } } });
+    const { data: result, error } = await supabase.auth.signUp({ email: account.email, password: account.password, options: { emailRedirectTo: `${window.location.origin}/cadastro/confirmado`, data: { full_name: account.name, profession: choice.profession, specialties: choice.specialties, categories: choice.categories, council_number: profile.councilNumber, modality: details.modality, city: details.city } } });
     if (error) { setNotice(error.message); setLoading(false); return; }
     if (result.session) await supabase.auth.signOut();
     window.location.href = '/cadastro/confirmado';
