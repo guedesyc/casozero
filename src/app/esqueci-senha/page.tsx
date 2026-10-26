@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { ArrowRight, Mail, MailCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { BrandLockup } from '@/components/ui/brand';
 
 /** Pede ao Supabase o e-mail de redefinição; o link volta para /redefinir-senha. */
 export default function ForgotPasswordPage() {
@@ -21,7 +22,7 @@ export default function ForgotPasswordPage() {
   }
 
   return <main className="auth-page"><section className="auth-card">
-    <Link href="/" className="auth-brand">CasoZero</Link>
+    <Link href="/" className="auth-brand brand-lockup" aria-label="CasoZero"><BrandLockup/></Link>
     {state === 'sent' ? <>
       <div className="confirmed-check"><MailCheck size={28} /></div>
       <p className="eyebrow">Verifique seu e-mail</p>

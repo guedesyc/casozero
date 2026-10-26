@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { ArrowRight, LockKeyhole, Mail } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ResendConfirmation } from '@/components/ui/email-confirm';
+import { BrandLockup } from '@/components/ui/brand';
 
 /** Mensagens do Supabase Auth em português. */
 function loginError(message: string) {
@@ -33,7 +34,7 @@ export default function LoginPage() {
   }
 
   return <main className="auth-page"><section className="auth-card">
-    <Link href="/" className="auth-brand">CasoZero</Link>
+    <Link href="/" className="auth-brand brand-lockup" aria-label="CasoZero"><BrandLockup/></Link>
     <p className="eyebrow">Acesso ao sistema</p>
     <h1>Entre na sua conta.</h1>
     <p className="auth-lead">Sua agenda, seus pacientes e a caderneta de cada um.</p>

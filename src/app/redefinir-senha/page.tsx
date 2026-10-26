@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowRight, Check, LockKeyhole } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { BrandLockup } from '@/components/ui/brand';
 
 const MIN_LENGTH = 8;
 
@@ -49,7 +50,7 @@ export default function ResetPasswordPage() {
   }
 
   return <main className="auth-page"><section className="auth-card">
-    <Link href="/" className="auth-brand">CasoZero</Link>
+    <Link href="/" className="auth-brand brand-lockup" aria-label="CasoZero"><BrandLockup/></Link>
     {phase === 'checking' && <p className="auth-lead">Validando o link…</p>}
     {phase === 'invalid' && <>
       <p className="eyebrow">Link inválido</p>

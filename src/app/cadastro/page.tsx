@@ -8,6 +8,7 @@ import { ProfessionChoice, ProfessionPicker } from '@/components/ui/profession-p
 import { loadClinic, saveClinic, saveProfessional, slugify } from '@/services/clinic';
 import { ConfirmEmailStep } from '@/components/ui/email-confirm';
 import { Modality } from '@/types';
+import { BrandLockup } from '@/components/ui/brand';
 
 export default function SignupPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -40,7 +41,7 @@ export default function SignupPage() {
   }
 
   return <main className="auth-page"><section className="auth-card auth-card-wide signup-card">
-    <Link href="/" className="auth-brand">CasoZero</Link>
+    <Link href="/" className="auth-brand brand-lockup" aria-label="CasoZero"><BrandLockup/></Link>
     {step < 3 && <p className="eyebrow">Novo cadastro · etapa {step} de 2</p>}
     {step === 3 ? <ConfirmEmailStep email={account.email} onChangeEmail={() => setStep(1)} /> : step === 1 ? <>
       <h1>Comece sua rotina.</h1>

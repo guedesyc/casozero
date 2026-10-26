@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { ClinicData, markWelcomeSeen, resetClinic, setClinicOwner, setViewAs, useClinic, viewingAsSecretary } from '@/services/clinic';
 import { Avatar } from '@/components/public/profile';
 import { AppointmentStatus, PatientStatus, RequestStatus } from '@/types';
+import { BrandLockup } from '@/components/ui/brand';
 
 const NAV: { group: string; items: { label: string; href: string; icon: typeof Inbox }[] }[] = [
   { group: 'Atendimento', items: [
@@ -74,10 +75,10 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
     : NAV.map(section => section.group === 'Conta' && PLANS[data.plan].team ? { ...section, items: [{ label: 'Equipe', href: '/app/equipe', icon: UsersRound }, ...section.items] } : section);
   const blocked = secretary && normalized !== '/app/agenda';
   return <div className="panel-layout">
-    <header className="panel-mobilebar"><button onClick={() => setOpen(true)} aria-label="Abrir menu"><Menu size={20} /></button><span className="panel-brand">CasoZero</span>{!secretary && pending > 0 && <Link href="/app/solicitacoes" className="nav-count">{pending}</Link>}</header>
+    <header className="panel-mobilebar"><button onClick={() => setOpen(true)} aria-label="Abrir menu"><Menu size={20} /></button><span className="panel-brand brand-lockup"><BrandLockup/></span>{!secretary && pending > 0 && <Link href="/app/solicitacoes" className="nav-count">{pending}</Link>}</header>
     {open && <div className="panel-scrim" onClick={() => setOpen(false)} />}
     <aside className={`panel-side ${open ? 'open' : ''}`}>
-      <div className="panel-side-top"><Link href={secretary ? '/app/agenda' : '/app'} className="panel-brand">CasoZero</Link><button className="panel-close" onClick={() => setOpen(false)} aria-label="Fechar menu"><X size={18} /></button></div>
+      <div className="panel-side-top"><Link href={secretary ? '/app/agenda' : '/app'} className="panel-brand brand-lockup" aria-label="CasoZero"><BrandLockup/></Link><button className="panel-close" onClick={() => setOpen(false)} aria-label="Fechar menu"><X size={18} /></button></div>
       {secretary
         ? <div className="panel-pro"><span className="initials">{initials(secretary.name)}</span><span><strong>{secretary.name}</strong><small>Secretária · acesso à agenda</small></span></div>
         : <div className="panel-pro"><Avatar professional={pro} size={36} /><span><strong>{pro.name}</strong><small>{PROFESSIONS[pro.profession].label}</small></span></div>}
