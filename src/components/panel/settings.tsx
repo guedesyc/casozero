@@ -1,18 +1,18 @@
 'use client';
 import Link from 'next/link';
 import { ChangeEvent, useEffect, useState } from 'react';
-import { ArrowRight, Check, Copy, Download, ExternalLink, Eye, ImagePlus, Loader2, LogOut, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowRight, Check, Copy, Download, ExternalLink, Eye, ImagePlus, Loader2, LogOut, Plus, Printer, Trash2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { PROFESSION_LIST, PROFESSIONS, ProfessionId } from '@/config/professions';
 import { PLANS, PlanId, formatBRL, formatMoney, priceLabel, toPlanId } from '@/config/plans';
 import { MIN_CLINIC_SEATS } from '@/config/stripe';
-import { formatShort, iso, today, WEEKDAYS } from '@/lib/dates';
+import { formatShort, formatStamp, iso, today, WEEKDAYS } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { ClinicData, resetClinic, saveAccount, saveProfessional, saveTeam, setPlan, setViewAs, slugify, slugifyTopic, uid, useClinic } from '@/services/clinic';
 import { ProfessionPicker } from '@/components/ui/profession-picker';
 import { Avatar } from '@/components/public/profile';
 import { AccountSettings, Availability, Modality, Professional, Service, TeamMember, TeamRole, TimeBlock } from '@/types';
-import { Block, FormError, PageTitle } from './shell';
+import { Block, FormError, PageTitle, PATIENT_LABELS } from './shell';
 
 type Update = ReturnType<typeof useClinic>['update'];
 
@@ -211,29 +211,63 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
   return <label className="toggle-row"><span><strong>{label}</strong>{hint && <small>{hint}</small>}</span><span className="switch"><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /><i /></span></label>;
 }
 
-const DEMO_SESSIONS = [
-  { device: 'Este navegador', place: 'Salvador, BA', when: 'Agora', current: true },
-  { device: 'iPhone · Safari', place: 'Salvador, BA', when: 'Há 2 dias', current: false },
-  { device: 'Windows · Chrome', place: 'Lauro de Freitas, BA', when: 'Há 9 dias', current: false },
-];
+/** Uma linha do relatório: o que a profissional precisa saber de cada paciente. */
+interface PatientReportRow { id: string; name: string; category: string; status: string; since: string; done: number; missed: number; notes: number; last?: string; next?: string; }
+
+function buildPatientReport(data: ClinicData): PatientReportRow[] {
+  const now = today();
+  const order = { active: 0, paused: 1, discharged: 2 } as const;
+  return data.patients.slice().sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name, 'pt-BR')).map(p => {
+    const sessions = data.appointments.filter(a => a.patientId === p.id && a.kind === 'session');
+    const done = sessions.filter(a => a.status === 'done').map(a => a.date).sort();
+    const next = sessions.filter(a => a.status === 'scheduled' && a.date >= now).map(a => a.date).sort()[0];
+    return {
+      id: p.id, name: p.name, category: p.category, status: PATIENT_LABELS[p.status], since: formatStamp(p.createdAt),
+      done: done.length, missed: sessions.filter(a => a.status === 'missed').length,
+      notes: data.notes.filter(n => n.patientId === p.id && n.number > 0).length,
+      last: done.length ? formatShort(done[done.length - 1]) : undefined, next: next ? formatShort(next) : undefined,
+    };
+  });
+}
+
+/** Planilha para abrir no Excel (ponto e vírgula e acentos preservados). */
+function downloadSpreadsheet(rows: PatientReportRow[]) {
+  const header = ['Paciente', 'Assunto', 'Situação', 'Paciente desde', 'Sessões realizadas', 'Faltas', 'Anotações na caderneta', 'Última sessão', 'Próxima sessão'];
+  const cell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+  const lines = [header, ...rows.map(r => [r.name, r.category, r.status, r.since, r.done, r.missed, r.notes, r.last ?? '', r.next ?? ''])].map(line => line.map(cell).join(';'));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = `pacientes-${iso(new Date())}.csv`;
+  a.click();
+}
+
+/** Imprime só o relatório (o navegador oferece “Salvar como PDF”). */
+function printReport() {
+  document.body.classList.add('printing-report');
+  const done = () => { document.body.classList.remove('printing-report'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
 
 export function AccountPage({ data, update }: { data: ClinicData; update: Update }) {
   const [value, setValue] = useState<AccountSettings>(data.account);
-  const [sessions, setSessions] = useState(DEMO_SESSIONS);
   const [loginEmail, setLoginEmail] = useState(data.account.email);
   const dirty = JSON.stringify(value) !== JSON.stringify(data.account);
   useEffect(() => { supabase?.auth.getUser().then(({ data: { user } }) => { if (user?.email) setLoginEmail(user.email); }); }, []);
-
-  function exportData() {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-    a.download = `casozero-dados-${iso(new Date())}.json`;
-    a.click();
-  }
   async function logout() { if (supabase) await supabase.auth.signOut(); window.location.href = '/login'; }
 
+  const rows = buildPatientReport(data);
+  const month = today().slice(0, 7);
+  const sessionsThisMonth = data.appointments.filter(a => a.kind === 'session' && a.date.startsWith(month));
+  const totals = [
+    { label: 'Pacientes cadastrados', value: data.patients.length },
+    { label: 'Em acompanhamento', value: data.patients.filter(p => p.status === 'active').length },
+    { label: 'Sessões realizadas no mês', value: sessionsThisMonth.filter(a => a.status === 'done').length },
+    { label: 'Faltas no mês', value: sessionsThisMonth.filter(a => a.status === 'missed').length },
+  ];
+
   return <section className="page">
-    <PageTitle eyebrow="Conta" title="Conta e acesso" text="Seus dados de acesso, avisos, segurança e privacidade.">
+    <PageTitle eyebrow="Conta" title="Conta e acesso" text="Seus dados de acesso, avisos e o relatório dos seus pacientes.">
       <SaveButton dirty={dirty} onSave={saveWith(update, d => saveAccount(d, value))} />
     </PageTitle>
     <div className="two-cols">
@@ -241,34 +275,39 @@ export function AccountPage({ data, update }: { data: ClinicData; update: Update
         <Block title="Dados de acesso">
           <label className="field"><span>E-mail de login</span><input type="email" value={loginEmail} readOnly /></label>
           <label className="field"><span>Celular <small>Para avisos e recuperação da conta</small></span><input type="tel" value={value.phone} onChange={e => setValue({ ...value, phone: e.target.value })} /></label>
+          <p className="muted">Plano atual: <b>{PLANS[data.plan].name}</b>.</p>
         </Block>
         <Block title="Senha">
           <p className="muted">Para trocar a senha, use <b>Esqueci minha senha</b> na tela de login. Enviamos um link para o seu e-mail e a nova senha é criada por ele.</p>
         </Block>
       </div>
-      <div className="stack">
-        <Block title="Avisos">
-          <Toggle label="Novo pedido de triagem" hint="Receber um e-mail quando alguém pedir horário pelo link." checked={value.notifyNewRequest} onChange={v => setValue({ ...value, notifyNewRequest: v })} />
-          <Toggle label="Resumo diário da agenda" hint="Às 7h, a lista de atendimentos do dia." checked={value.notifyDailyAgenda} onChange={v => setValue({ ...value, notifyDailyAgenda: v })} />
-          <Toggle label="Lembrete para o paciente" hint="Mensagem automática no WhatsApp antes da sessão." checked={value.remindPatients} onChange={v => setValue({ ...value, remindPatients: v })} />
-          {value.remindPatients && <label className="field"><span>Enviar o lembrete</span><select value={value.reminderHours} onChange={e => setValue({ ...value, reminderHours: Number(e.target.value) })}>{[2, 12, 24, 48].map(h => <option key={h} value={h}>{h} horas antes</option>)}</select></label>}
-        </Block>
-        <Block title="Segurança">
-          <Toggle label="Verificação em duas etapas" hint="Pede um código do celular ao entrar em um aparelho novo." checked={value.twoFactor} onChange={v => setValue({ ...value, twoFactor: v })} />
-          <p className="sub-title">Aparelhos conectados</p>
-          {sessions.map(s => <div key={s.device} className="device-row"><ShieldCheck size={16} /><span><strong>{s.device}</strong><small>{s.place} · {s.when}</small></span>{s.current ? <span className="badge badge-active">Atual</span> : <button className="text-link" onClick={() => setSessions(sessions.filter(x => x !== s))}>Encerrar</button>}</div>)}
-        </Block>
-      </div>
+      <Block title="Avisos">
+        <Toggle label="Novo pedido de triagem" hint="Receber um e-mail quando alguém pedir horário pelo link." checked={value.notifyNewRequest} onChange={v => setValue({ ...value, notifyNewRequest: v })} />
+        <Toggle label="Resumo diário da agenda" hint="Às 7h, a lista de atendimentos do dia." checked={value.notifyDailyAgenda} onChange={v => setValue({ ...value, notifyDailyAgenda: v })} />
+        <Toggle label="Lembrete para o paciente" hint="Mensagem automática no WhatsApp antes da sessão." checked={value.remindPatients} onChange={v => setValue({ ...value, remindPatients: v })} />
+        {value.remindPatients && <label className="field"><span>Enviar o lembrete</span><select value={value.reminderHours} onChange={e => setValue({ ...value, reminderHours: Number(e.target.value) })}>{[2, 12, 24, 48].map(h => <option key={h} value={h}>{h} horas antes</option>)}</select></label>}
+      </Block>
     </div>
-    <Block title="Privacidade e dados" className="spaced">
-      <p className="muted">Pela LGPD, você pode baixar tudo o que está guardado na sua conta, inclusive pacientes e caderneta.</p>
-      <div className="button-row">
-        <button className="secondary small" onClick={exportData}><Download size={14} /> Baixar meus dados</button>
-        <button className="secondary small" onClick={logout}><LogOut size={14} /> Sair</button>
-        <button className="ghost-danger small" onClick={() => { if (confirm('Excluir a conta apaga todos os dados. Na demonstração, isso volta ao exemplo inicial. Continuar?')) { resetClinic(); window.location.href = '/'; } }}><Trash2 size={14} /> Excluir conta</button>
-      </div>
-      <p className="muted small-print">Membro desde {formatShort('2026-03-02')} · Plano {PLANS[data.plan].name}</p>
+
+    <Block title="Relatório dos pacientes" className="spaced patient-report" action={rows.length > 0 && <span className="button-row no-print">
+      <button className="secondary small" onClick={() => downloadSpreadsheet(rows)}><Download size={14} /> Baixar planilha (Excel)</button>
+      <button className="secondary small" onClick={printReport}><Printer size={14} /> Imprimir / salvar PDF</button>
+    </span>}>
+      <p className="print-only report-heading">{data.professional.name} · emitido em {formatShort(today())}</p>
+      <div className="report-totals">{totals.map(t => <div key={t.label}><strong>{t.value}</strong><span>{t.label}</span></div>)}</div>
+      {rows.length ? <div className="report-table-wrap"><table className="report-table">
+        <thead><tr><th>Paciente</th><th>Situação</th><th>Desde</th><th>Sessões</th><th>Faltas</th><th>Última</th><th>Próxima</th></tr></thead>
+        <tbody>{rows.map(r => <tr key={r.id}>
+          <td><Link href={`/app/pacientes/detalhe/?id=${r.id}`}><b>{r.name}</b></Link><small>{r.category}</small></td>
+          <td>{r.status}</td><td>{r.since}</td><td>{r.done}</td><td>{r.missed}</td><td>{r.last ?? '—'}</td><td>{r.next ?? '—'}</td>
+        </tr>)}</tbody>
+      </table></div> : <p className="muted">Quando você tiver pacientes, eles aparecem aqui com o número de sessões, faltas e as datas da última e da próxima sessão.</p>}
     </Block>
+
+    <div className="account-footer no-print">
+      <button className="secondary small" onClick={logout}><LogOut size={14} /> Sair</button>
+      <button className="ghost-danger small" onClick={() => { if (confirm('Excluir a conta apaga todos os dados. Na demonstração, isso volta ao exemplo inicial. Continuar?')) { resetClinic(); window.location.href = '/'; } }}><Trash2 size={14} /> Excluir conta</button>
+    </div>
   </section>;
 }
 
