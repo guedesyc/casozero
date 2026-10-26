@@ -207,10 +207,6 @@ export function MyLinkPage({ data, update }: { data: ClinicData; update: Update 
 /* Conta                                                               */
 /* ------------------------------------------------------------------ */
 
-function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (value: boolean) => void }) {
-  return <label className="toggle-row"><span><strong>{label}</strong>{hint && <small>{hint}</small>}</span><span className="switch"><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /><i /></span></label>;
-}
-
 /** Uma linha do relatório: o que a profissional precisa saber de cada paciente. */
 interface PatientReportRow { id: string; name: string; category: string; status: string; since: string; done: number; missed: number; notes: number; last?: string; next?: string; }
 
@@ -267,25 +263,17 @@ export function AccountPage({ data, update }: { data: ClinicData; update: Update
   ];
 
   return <section className="page">
-    <PageTitle eyebrow="Conta" title="Conta e acesso" text="Seus dados de acesso, avisos e o relatório dos seus pacientes.">
+    <PageTitle eyebrow="Conta" title="Conta e acesso" text="Seus dados de acesso e o relatório dos seus pacientes.">
       <SaveButton dirty={dirty} onSave={saveWith(update, d => saveAccount(d, value))} />
     </PageTitle>
     <div className="two-cols">
-      <div className="stack">
-        <Block title="Dados de acesso">
-          <label className="field"><span>E-mail de login</span><input type="email" value={loginEmail} readOnly /></label>
-          <label className="field"><span>Celular <small>Para avisos e recuperação da conta</small></span><input type="tel" value={value.phone} onChange={e => setValue({ ...value, phone: e.target.value })} /></label>
-          <p className="muted">Plano atual: <b>{PLANS[data.plan].name}</b>.</p>
-        </Block>
-        <Block title="Senha">
-          <p className="muted">Para trocar a senha, use <b>Esqueci minha senha</b> na tela de login. Enviamos um link para o seu e-mail e a nova senha é criada por ele.</p>
-        </Block>
-      </div>
-      <Block title="Avisos">
-        <Toggle label="Novo pedido de triagem" hint="Receber um e-mail quando alguém pedir horário pelo link." checked={value.notifyNewRequest} onChange={v => setValue({ ...value, notifyNewRequest: v })} />
-        <Toggle label="Resumo diário da agenda" hint="Às 7h, a lista de atendimentos do dia." checked={value.notifyDailyAgenda} onChange={v => setValue({ ...value, notifyDailyAgenda: v })} />
-        <Toggle label="Lembrete para o paciente" hint="Mensagem automática no WhatsApp antes da sessão." checked={value.remindPatients} onChange={v => setValue({ ...value, remindPatients: v })} />
-        {value.remindPatients && <label className="field"><span>Enviar o lembrete</span><select value={value.reminderHours} onChange={e => setValue({ ...value, reminderHours: Number(e.target.value) })}>{[2, 12, 24, 48].map(h => <option key={h} value={h}>{h} horas antes</option>)}</select></label>}
+      <Block title="Dados de acesso">
+        <label className="field"><span>E-mail de login</span><input type="email" value={loginEmail} readOnly /></label>
+        <label className="field"><span>Celular <small>Para contato e recuperação da conta</small></span><input type="tel" value={value.phone} onChange={e => setValue({ ...value, phone: e.target.value })} /></label>
+        <p className="muted">Plano atual: <b>{PLANS[data.plan].name}</b>.</p>
+      </Block>
+      <Block title="Senha">
+        <p className="muted">Para trocar a senha, use <b>Esqueci minha senha</b> na tela de login. Enviamos um link para o seu e-mail e a nova senha é criada por ele.</p>
       </Block>
     </div>
 
