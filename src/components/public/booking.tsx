@@ -4,21 +4,20 @@ import { useMemo, useState } from 'react';
 import { AlertCircle, ArrowLeft, ArrowRight, CalendarCheck, Check } from 'lucide-react';
 import { formatLong } from '@/lib/dates';
 import { PROFESSIONS } from '@/config/professions';
-import { ClinicData, slugifyTopic, submitRequest, useClinic } from '@/services/clinic';
+import { NewRequest, Outcome, slugifyTopic } from '@/services/clinic';
 import { availableDates, freeSlots } from '@/services/scheduling';
 import { Slot, SlotPicker } from '@/components/ui/slot-picker';
 import { TriageRequest } from '@/types';
-import { ProHeader } from './profile';
+import { ProHeader, type PublicData } from './profile';
 
 type Stage = 'need' | 'about' | 'slot' | 'review' | 'done';
 const STEPS: [Stage, string][] = [['need', 'O que procura'], ['about', 'Seus dados'], ['slot', 'Triagem'], ['review', 'Confirmar']];
-type Update = ReturnType<typeof useClinic>['update'];
 
 /**
  * Pedido de triagem: demanda → dados → horário → envio. As etapas são livres
  * para avançar e voltar; só o envio exige nome, telefone, horário e consentimento.
  */
-export default function Booking({ data, update, topic }: { data: ClinicData; update: Update; topic?: string }) {
+export default function Booking({ data, submit, topic }: { data: PublicData; submit: (input: NewRequest) => Outcome<TriageRequest> | Promise<Outcome<TriageRequest>>; topic?: string }) {
   const professional = data.professional;
   const [stage, setStage] = useState<Stage>('need');
   const [need, setNeed] = useState({ category: professional.categories.find(c => slugifyTopic(c) === topic) ?? '', concern: '', expectation: '', modality: '' as '' | 'online' | 'presencial' });
@@ -27,6 +26,7 @@ export default function Booking({ data, update, topic }: { data: ClinicData; upd
   const [consent, setConsent] = useState(false);
   const [sent, setSent] = useState<TriageRequest>();
   const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
   const dates = useMemo(() => availableDates(professional, data.appointments, data.requests), [professional, data.appointments, data.requests]);
 
   const minor = Number(about.age) > 0 && Number(about.age) < 18;
@@ -39,14 +39,16 @@ export default function Booking({ data, update, topic }: { data: ClinicData; upd
   const first = professional.name.split(' ')[0];
   const examples = PROFESSIONS[professional.profession].examples;
 
-  function send() {
-    if (!slot || !consent || missing.length) return;
-    const result = update(d => submitRequest(d, {
+  async function send() {
+    if (!slot || !consent || missing.length || sending) return;
+    setSending(true);
+    const result = await submit({
       name: about.name.trim(), age: about.age, phone: about.phone, guardianName: minor ? about.guardianName.trim() : undefined,
       category: need.category || 'Outro assunto', concern: need.concern.trim(), expectation: need.expectation.trim(),
       modality: professional.modality === 'ambos' ? need.modality || undefined : professional.modality,
       requestedDate: slot.date, requestedTime: slot.time,
-    }));
+    });
+    setSending(false);
     if (result.error) { setError(result.error); setSlot(undefined); setStage('slot'); return; }
     setSent(result.value); setStage('done');
   }
@@ -101,7 +103,7 @@ export default function Booking({ data, update, topic }: { data: ClinicData; upd
       </dl>
       {missing.length > 0 && <div className="form-error"><AlertCircle size={15} /><span>Para enviar, falta informar {missing.map(([step, label], i) => <span key={label}>{i > 0 && (i === missing.length - 1 ? ' e ' : ', ')}<button type="button" onClick={() => go(step)}>{label}</button></span>)}.</span></div>}
       <label className="consent"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>Autorizo que {professional.name} receba estas informações, que incluem dados sobre a minha saúde, para avaliar e agendar meu atendimento.</span></label>
-      <div className="button-row"><button className="secondary" onClick={() => go('slot')}><ArrowLeft size={16} /> Voltar</button><button className="primary" disabled={!consent || missing.length > 0} onClick={send}>Pedir triagem <ArrowRight size={18} /></button></div>
+      <div className="button-row"><button className="secondary" onClick={() => go('slot')}><ArrowLeft size={16} /> Voltar</button><button className="primary" disabled={!consent || missing.length > 0 || sending} onClick={send}>{sending ? 'Enviando…' : <>Pedir triagem <ArrowRight size={18} /></>}</button></div>
       <p className="fineprint">O horário fica reservado até {first} confirmar.</p>
     </>}
 

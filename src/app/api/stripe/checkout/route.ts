@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const price = plan === 'gratis' ? undefined : STRIPE_PRICE_IDS[plan];
   if (plan !== 'gratis' && !price) return NextResponse.json({ error: 'Preço deste plano ainda não configurado na Stripe.' }, { status: 503 });
   // Clínica: uma unidade por profissional.
-  const quantity = plan === 'clinica' ? Math.max(MIN_CLINIC_SEATS, Math.floor(Number(body.seats) || MIN_CLINIC_SEATS)) : 1;
+  const quantity = plan === 'clinica' ? Math.min(100, Math.max(MIN_CLINIC_SEATS, Math.floor(Number(body.seats) || MIN_CLINIC_SEATS))) : 1;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const authorization = request.headers.get('authorization');

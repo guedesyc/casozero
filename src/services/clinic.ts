@@ -6,6 +6,7 @@ import { buildSeed, buildTeamAppointments, demoAccount, demoProfessional, demoTe
 import { ProfessionId, PROFESSIONS } from '@/config/professions';
 import { AccountSettings, Appointment, AppointmentStatus, Patient, PatientStatus, Professional, Recurrence, SessionNote, TeamAppointment, TeamMember, TriageRequest } from '@/types';
 import { findConflict, RECURRENCE_HORIZON_DAYS, recurringDates } from './scheduling';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Estado do protótipo. Por enquanto fica no localStorage do navegador; cada
@@ -32,31 +33,88 @@ export interface ClinicData {
 /** Resultado das operações que podem ser recusadas por conflito de horário. */
 export type Outcome<T = undefined> = { error?: string; value?: T };
 
-const BASE_KEY = 'casozero-saude-v1';
-const OWNER_KEY = 'casozero-saude-owner';
+const DEMO_KEY = 'casozero-saude-v1';
 const EVENT = 'casozero-saude-change';
+/** Evento disparado quando uma gravação no Supabase falha (o painel mostra o aviso). */
+export const SYNC_ERROR_EVENT = 'casozero-saude-sync-error';
 
 /** Usuário do Supabase dono dos dados. Sem ele, o app está em modo demonstração. */
 export interface ClinicOwner { id: string; email?: string; metadata: Record<string, unknown>; }
 let owner: ClinicOwner | null = null;
 
-/** Liga o painel aos dados do usuário logado (cada conta tem seu próprio armazenamento). */
-export function setClinicOwner(next: ClinicOwner | null) {
-  owner = next;
-  try { if (next) window.localStorage.setItem(OWNER_KEY, next.id); } catch { /* ignore */ }
-  window.dispatchEvent(new Event(EVENT));
+/* ---- Conta real: estado em memória, lido e gravado no Supabase ---- */
+let remote: ClinicData | null = null;
+let remoteLoading: Promise<void> | null = null;
+let writes: Promise<void> = Promise.resolve();
+let pendingWrites = 0;
+
+const emit = () => window.dispatchEvent(new Event(EVENT));
+const emitError = (message: string) => window.dispatchEvent(new CustomEvent(SYNC_ERROR_EVENT, { detail: message }));
+
+/** Apaga cópias antigas de pacientes e caderneta guardadas no navegador antes da migração. */
+function clearLegacyLocalData() {
+  try {
+    for (const key of Object.keys(window.localStorage)) if (key.startsWith(`${DEMO_KEY}:`) || key === 'casozero-saude-owner') window.localStorage.removeItem(key);
+  } catch { /* ignore */ }
 }
 
-/**
- * Chave dos dados. Conta real: uma por usuário. A página pública aberta neste
- * navegador usa a última conta que entrou aqui (até os dados irem ao Supabase).
- */
-function storageKey() {
-  let id = owner?.id;
-  if (!id) try { id = window.localStorage.getItem(OWNER_KEY) ?? undefined; } catch { /* ignore */ }
-  return id ? `${BASE_KEY}:${id}` : BASE_KEY;
+async function loadRemote(user: ClinicOwner) {
+  const { fetchClinic, persistDiff } = await import('./remote');
+  const fetched = await fetchClinic(user, () => buildBlank(user));
+  if (owner?.id !== user.id) return;
+  // Sessões recorrentes dos próximos dias entram na agenda e são gravadas.
+  const rolled = structuredClone(fetched);
+  rollRecurrences(rolled);
+  remote = rolled;
+  emit();
+  if (JSON.stringify(rolled.appointments) !== JSON.stringify(fetched.appointments)) queueWrite(fetched, rolled, persistDiff);
 }
-const isRealAccount = () => storageKey() !== BASE_KEY;
+
+function queueWrite(before: ClinicData, after: ClinicData, persist?: typeof import('./remote').persistDiff) {
+  const user = owner;
+  if (!user) return;
+  pendingWrites++;
+  writes = writes.then(async () => {
+    const { persistDiff, describeError } = await import('./remote');
+    try {
+      const patched = await (persist ?? persistDiff)(before, after, user.id);
+      if (remote && Object.keys(patched).length) { remote.professional = { ...remote.professional, ...patched }; emit(); }
+    } catch (error) {
+      emitError(describeError(error));
+      // Volta ao que está de fato no banco.
+      try { remote = null; await loadRemote(user); } catch { /* o aviso já foi mostrado */ }
+    } finally { pendingWrites--; }
+  });
+}
+
+/** Busca de novo no banco (pedidos novos do link público), se não houver gravação em andamento. */
+export function refreshClinic() {
+  if (!owner || !supabase || pendingWrites > 0 || !remote) return;
+  const user = owner;
+  loadRemote(user).catch(() => { /* mantém o que já está na tela */ });
+}
+
+/** Espera as gravações pendentes (usar antes de trocar de página). */
+export function flushClinic() { return writes; }
+
+/** Liga o painel à conta logada. Com Supabase, os dados vêm do banco. */
+export function setClinicOwner(next: ClinicOwner | null) {
+  const changed = owner?.id !== next?.id;
+  owner = next;
+  if (!changed) return;
+  remote = null;
+  if (next && supabase) {
+    clearLegacyLocalData();
+    remoteLoading = loadRemote(next).catch(async error => {
+      const { describeError } = await import('./remote');
+      emitError(describeError(error));
+    });
+  }
+  emit();
+}
+
+const isRemote = () => Boolean(owner && supabase);
+const isRealAccount = () => Boolean(owner);
 
 const text = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : undefined;
 const list = (value: unknown) => Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
@@ -75,7 +133,7 @@ export function buildBlank(user: ClinicOwner): ClinicData {
       bookingTitle: 'O que você procura?', bookingIntro: '',
       availability: { ...structuredClone(demoProfessional.availability), blocks: [] },
     },
-    account: { ...structuredClone(demoAccount), email: user.email ?? '', phone: '' },
+    account: { ...structuredClone(demoAccount), email: user.email ?? '', phone: text(m.phone) ?? '', remindPatients: false },
     plan: 'gratis', team: [], teamAppointments: [],
     requests: [], patients: [], appointments: [], notes: [],
     welcomeSeen: false,
@@ -98,35 +156,57 @@ function migrate(data: ClinicData) {
   data.teamAppointments ??= real ? [] : buildTeamAppointments();
 }
 
+/** Estado atual (cópia). Conta real: o que veio do banco; demonstração: o navegador. */
 export function loadClinic(): ClinicData {
+  if (isRemote()) {
+    if (!remote) throw new Error('Dados ainda carregando');
+    return structuredClone(remote);
+  }
   let data: ClinicData | null = null;
-  try { const saved = window.localStorage.getItem(storageKey()); if (saved) data = JSON.parse(saved); } catch { /* volta para o início */ }
+  try { const saved = window.localStorage.getItem(DEMO_KEY); if (saved) data = JSON.parse(saved); } catch { /* volta para o início */ }
   if (!data?.professional) data = owner ? buildBlank(owner) : buildSeed();
   migrate(data);
   rollRecurrences(data);
   return data;
 }
 
-/** Salva; devolve false quando o navegador recusa (ex.: imagens grandes demais). */
+/** Salva. Conta real: atualiza na hora e grava no Supabase em segundo plano. */
 export function saveClinic(data: ClinicData) {
+  if (isRemote()) {
+    if (!remote) return false;
+    const before = remote;
+    remote = structuredClone(data);
+    queueWrite(before, remote);
+    emit();
+    return true;
+  }
   let ok = true;
-  try { window.localStorage.setItem(storageKey(), JSON.stringify(data)); } catch { ok = false; }
-  window.dispatchEvent(new Event(EVENT));
+  try { window.localStorage.setItem(DEMO_KEY, JSON.stringify(data)); } catch { ok = false; }
+  emit();
   return ok;
 }
 
-export function resetClinic() { try { window.localStorage.removeItem(storageKey()); } catch { /* ignore */ } window.dispatchEvent(new Event(EVENT)); }
+/** Só no modo demonstração: volta aos dados de exemplo. */
+export function resetClinic() {
+  if (isRemote()) return;
+  try { window.localStorage.removeItem(DEMO_KEY); } catch { /* ignore */ }
+  emit();
+}
 
-/** Hook do estado da clínica, sincronizado entre abas (link público ↔ painel). */
+/** Hook do estado da clínica (painel). Conta real: espera o banco carregar. */
 export function useClinic() {
   const [data, setData] = useState<ClinicData | null>(null);
   useEffect(() => {
-    const refresh = () => setData(loadClinic());
+    const refresh = () => { if (isRemote() && !remote) { setData(null); return; } setData(loadClinic()); };
     refresh();
-    const onStorage = (e: StorageEvent) => { if (e.key === storageKey() || e.key === null) refresh(); };
+    const onStorage = (e: StorageEvent) => { if (!isRemote() && (e.key === DEMO_KEY || e.key === null)) refresh(); };
+    const beforeUnload = (e: BeforeUnloadEvent) => { if (pendingWrites > 0) { e.preventDefault(); e.returnValue = ''; } };
     window.addEventListener('storage', onStorage);
     window.addEventListener(EVENT, refresh);
-    return () => { window.removeEventListener('storage', onStorage); window.removeEventListener(EVENT, refresh); };
+    window.addEventListener('beforeunload', beforeUnload);
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshClinic(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.removeEventListener('storage', onStorage); window.removeEventListener(EVENT, refresh); window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('visibilitychange', onVisible); };
   }, []);
   const update = useCallback(<R,>(change: (draft: ClinicData) => R): R => {
     const draft = loadClinic();
@@ -139,6 +219,10 @@ export function useClinic() {
   }, []);
   return { data, update };
 }
+
+/** Para a página pública da demonstração (sem Supabase) continuar lendo o navegador. */
+export function hasRemoteAccount() { return Boolean(supabase); }
+void remoteLoading;
 
 /* ------------------------------------------------------------------ */
 /* Pedidos de triagem                                                  */
@@ -225,7 +309,8 @@ function recurrenceConflict(data: ClinicData, recurrence: Recurrence, patientId?
   const from = recurrence.startDate > today() ? recurrence.startDate : today();
   const minutes = data.professional.availability.sessionMinutes;
   const clashes = recurringDates(recurrence, from, addDays(today(), RECURRENCE_HORIZON_DAYS))
-    .map(date => findConflict(data.professional, data.appointments, date, recurrence.time, minutes, a => a.patientId === patientId && a.kind === 'session' && a.status === 'scheduled'))
+    // Bloqueios (folgas) não impedem o horário fixo: a sessão daquele dia só não é lançada.
+    .map(date => findConflict(data.professional, data.appointments, date, recurrence.time, minutes, a => a.patientId === patientId && a.kind === 'session' && a.status === 'scheduled', false))
     .filter(Boolean);
   if (clashes.length) return `Esse horário fixo bate com ${clashes.length} compromisso(s). Primeiro: ${clashes[0]}`;
 }

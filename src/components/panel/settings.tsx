@@ -8,13 +8,16 @@ import { PLANS, PlanId, formatBRL, formatMoney, priceLabel, toPlanId } from '@/c
 import { MIN_CLINIC_SEATS } from '@/config/stripe';
 import { formatShort, formatStamp, iso, today, WEEKDAYS } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
-import { ClinicData, resetClinic, saveAccount, saveProfessional, saveTeam, setPlan, setViewAs, slugify, slugifyTopic, uid, useClinic } from '@/services/clinic';
+import { ClinicData, flushClinic, resetClinic, saveAccount, saveProfessional, saveTeam, setClinicOwner, setPlan, setViewAs, slugify, slugifyTopic, uid, useClinic } from '@/services/clinic';
 import { ProfessionPicker } from '@/components/ui/profession-picker';
+import { isSlugAvailable } from '@/services/remote';
 import { Avatar } from '@/components/public/profile';
 import { AccountSettings, Availability, Modality, Professional, Service, TeamMember, TeamRole, TimeBlock } from '@/types';
 import { Block, FormError, PageTitle, PATIENT_LABELS } from './shell';
 
 type Update = ReturnType<typeof useClinic>['update'];
+
+const RESERVED_SLUGS = new Set(['app','api','admin','login','logout','entrar','sair','cadastro','cadastrar','precos','planos','conta','configuracoes','ajuda','suporte','contato','termos','privacidade','sobre','blog','static','public','assets','casozero','www','agendar','pagina','perfil','equipe','pacientes','agenda','solicitacoes','disponibilidade']);
 
 /** Salva e mostra “Salvo” ou o erro devolvido pela operação. */
 function SaveButton({ dirty, onSave }: { dirty: boolean; onSave: () => string | void }) {
@@ -178,6 +181,21 @@ export function PublicPageEditor({ data, update }: { data: ClinicData; update: U
 
 export function MyLinkPage({ data, update }: { data: ClinicData; update: Update }) {
   const [slug, setSlug] = useState(data.professional.slug);
+  const [slugError, setSlugError] = useState('');
+  const [checking, setChecking] = useState(false);
+  /** Endereço único e fora da lista de palavras do sistema; com Supabase, o banco confirma. */
+  async function saveSlug() {
+    setSlugError('');
+    if (slug.length < 3) { setSlugError('Use pelo menos 3 letras ou números.'); return; }
+    if (RESERVED_SLUGS.has(slug)) { setSlugError('Esse endereço é usado pelo sistema. Escolha outro.'); return; }
+    if (supabase) {
+      setChecking(true);
+      const free = await isSlugAvailable(slug);
+      setChecking(false);
+      if (!free) { setSlugError('Esse endereço já está em uso. Escolha outro.'); return; }
+    }
+    update(d => saveProfessional(d, { slug }));
+  }
   const [copied, setCopied] = useState('');
   const [origin, setOrigin] = useState('https://casozero.com.br');
   useEffect(() => setOrigin(window.location.origin), []);
@@ -189,7 +207,8 @@ export function MyLinkPage({ data, update }: { data: ClinicData; update: Update 
       <Block title="Link da sua página">
         <p className="link-big">{url.replace(/^https?:\/\//, '')}</p>
         <div className="button-row"><button className="primary small" onClick={() => copy(url)}>{copied === url ? <Check size={15} /> : <Copy size={15} />} {copied === url ? 'Copiado' : 'Copiar link'}</button><a className="secondary small" href={`/${data.professional.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Abrir</a></div>
-        <label className="field"><span>Endereço personalizado</span><div className="inline-form"><span className="muted">{origin.replace(/^https?:\/\//, '')}/</span><input value={slug} onChange={e => setSlug(slugify(e.target.value))} /><button className="secondary small" disabled={slug === data.professional.slug} onClick={() => update(d => saveProfessional(d, { slug }))}>Salvar</button></div></label>
+        <label className="field"><span>Endereço personalizado</span><div className="inline-form"><span className="muted">{origin.replace(/^https?:\/\//, '')}/</span><input value={slug} onChange={e => setSlug(slugify(e.target.value))} /><button className="secondary small" disabled={slug === data.professional.slug || checking} onClick={saveSlug}>{checking ? 'Verificando…' : 'Salvar'}</button></div></label>
+        <FormError message={slugError} />
       </Block>
       <Block title="QR Code">
         <div className="qr"><QRCodeSVG value={url} size={176} /></div>
@@ -250,7 +269,7 @@ export function AccountPage({ data, update }: { data: ClinicData; update: Update
   const [loginEmail, setLoginEmail] = useState(data.account.email);
   const dirty = JSON.stringify(value) !== JSON.stringify(data.account);
   useEffect(() => { supabase?.auth.getUser().then(({ data: { user } }) => { if (user?.email) setLoginEmail(user.email); }); }, []);
-  async function logout() { if (supabase) await supabase.auth.signOut(); window.location.href = '/login'; }
+  async function logout() { await flushClinic(); if (supabase) await supabase.auth.signOut(); setClinicOwner(null); window.location.href = '/login'; }
 
   const rows = buildPatientReport(data);
   const month = today().slice(0, 7);
@@ -294,7 +313,9 @@ export function AccountPage({ data, update }: { data: ClinicData; update: Update
 
     <div className="account-footer no-print">
       <button className="secondary small" onClick={logout}><LogOut size={14} /> Sair</button>
-      <button className="ghost-danger small" onClick={() => { if (confirm('Excluir a conta apaga todos os dados. Na demonstração, isso volta ao exemplo inicial. Continuar?')) { resetClinic(); window.location.href = '/'; } }}><Trash2 size={14} /> Excluir conta</button>
+      {supabase
+        ? <a className="ghost-danger small" href="mailto:contato@casozero.com.br?subject=Excluir%20minha%20conta%20no%20CasoZero"><Trash2 size={14} /> Pedir exclusão da conta</a>
+        : <button className="ghost-danger small" onClick={() => { if (confirm('Na demonstração, isso volta ao exemplo inicial. Continuar?')) { resetClinic(); window.location.href = '/'; } }}><Trash2 size={14} /> Excluir conta</button>}
     </div>
   </section>;
 }
@@ -418,7 +439,7 @@ export function TeamPage({ data, update }: { data: ClinicData; update: Update })
             <li><b>Profissional</b> Agenda compartilhada, os próprios pacientes e a própria caderneta. Nunca a caderneta dos colegas.</li>
             <li><b>Secretária(o)</b> Só a agenda de todos: horários, nomes e situação. Sem caderneta, evolução ou dados da triagem.</li>
           </ul>
-          {secretary && !dirty && <button className="secondary small" onClick={() => { update(d => setViewAs(d, secretary.id)); window.location.href = '/app/agenda'; }}><Eye size={14} /> Ver o painel como {secretary.name.split(' ')[0]}</button>}
+          {secretary && !dirty && <button className="secondary small" onClick={async () => { update(d => setViewAs(d, secretary.id)); await flushClinic(); window.location.href = '/app/agenda'; }}><Eye size={14} /> Ver o painel como {secretary.name.split(' ')[0]}</button>}
         </Block>
       </div>
     </div>

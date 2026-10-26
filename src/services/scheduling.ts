@@ -47,10 +47,11 @@ export function availableDates(professional: Professional, appointments: Appoint
  * intervalo ou um bloqueio da agenda. `ignore` lista compromissos que serão
  * substituídos pela própria operação (ex.: a triagem sendo remarcada).
  */
-export function findConflict(professional: Professional, appointments: Appointment[], date: string, time: string, minutes: number, ignore: (a: Appointment) => boolean = () => false): string | undefined {
+export function findConflict(professional: Professional, appointments: Appointment[], date: string, time: string, minutes: number, ignore: (a: Appointment) => boolean = () => false, checkBlocks = true): string | undefined {
   const start = toMinutes(time);
   const clash = appointments.find(a => a.date === date && a.status !== 'canceled' && !ignore(a) && overlaps(start, minutes, toMinutes(a.time), a.minutes));
   if (clash) return `${formatDayMonth(date)} às ${clash.time} já está ocupado: ${clash.kind === 'triage' ? 'triagem' : 'sessão'} de ${clash.title}.`;
+  if (!checkBlocks) return;
   const block = professional.availability.blocks.find(b => b.date === date && (() => { const r = blockRange(b); return overlaps(start, minutes, r.start, r.minutes); })());
   if (block) return `${formatDayMonth(date)} ${block.allDay ? 'está bloqueado o dia todo' : `está bloqueado das ${block.start} às ${block.end}`}${block.reason ? ` (${block.reason})` : ''}.`;
 }

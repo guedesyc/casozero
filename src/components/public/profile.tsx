@@ -4,7 +4,9 @@ import { usePathname } from 'next/navigation';
 import { CalendarCheck, Clock3, MapPin, Monitor } from 'lucide-react';
 import { PROFESSIONS } from '@/config/professions';
 import { formatMoney } from '@/config/plans';
-import { ClinicData, slugifyTopic, useClinic } from '@/services/clinic';
+import { useCallback, useEffect, useState } from 'react';
+import { ClinicData, hasRemoteAccount, slugifyTopic, submitRequest, useClinic } from '@/services/clinic';
+import { fetchPublic, submitPublicRequest } from '@/services/remote';
 import { Professional } from '@/types';
 import Booking from './booking';
 
@@ -34,7 +36,7 @@ export function ProHeader({ professional, compact = false }: { professional: Pro
 }
 
 /** Página pública: apresentação do profissional e o convite para marcar a triagem. */
-export function PublicProfile({ data }: { data: ClinicData }) {
+export function PublicProfile({ data }: { data: PublicData }) {
   const p = data.professional;
   const booking = `/${p.slug}/agendar`;
   const services = p.services.filter(s => s.name.trim());
@@ -68,13 +70,34 @@ export function PublicProfile({ data }: { data: ClinicData }) {
   </main>;
 }
 
+export type PublicData = Pick<ClinicData, 'professional' | 'appointments' | 'requests'>;
+
+const NotFound = () => <main className="public-shell"><section className="public-card"><p className="eyebrow">Link não encontrado</p><h1>Não encontramos este profissional.</h1><p className="lead">Confira o endereço com quem te enviou o link.</p></section></main>;
+const Loading = () => <main className="public-shell"><section className="public-card"><p>Carregando…</p></section></main>;
+
 /** /<slug> mostra a página; /<slug>/agendar[/<demanda>] abre o pedido de triagem. */
 export default function PublicRoute() {
   const pathname = usePathname();
+  const [slug = '', action, topic] = pathname.split('/').filter(Boolean).filter(part => part !== 'casozero');
+  return hasRemoteAccount() ? <RemotePublic slug={slug} action={action} topic={topic} /> : <DemoPublic slug={slug} action={action} topic={topic} />;
+}
+
+/** Produção: perfil e horários vêm do banco, e o pedido é validado no servidor. */
+function RemotePublic({ slug, action, topic }: { slug: string; action?: string; topic?: string }) {
+  const [data, setData] = useState<PublicData | null | 'missing'>(null);
+  const load = useCallback(async () => { const result = await fetchPublic(slug); setData(result ?? 'missing'); }, [slug]);
+  useEffect(() => { load(); }, [load]);
+  if (data === null) return <Loading />;
+  if (data === 'missing') return <NotFound />;
+  if (action === 'agendar') return <Booking data={data} topic={topic} submit={async input => { const result = await submitPublicRequest(slug, input); await load(); return result; }} />;
+  return <PublicProfile data={data} />;
+}
+
+/** Demonstração (sem Supabase): dados no navegador. */
+function DemoPublic({ slug, action, topic }: { slug: string; action?: string; topic?: string }) {
   const { data, update } = useClinic();
-  const [slug, action, topic] = pathname.split('/').filter(Boolean).filter(part => part !== 'casozero');
-  if (!data) return <main className="public-shell"><section className="public-card"><p>Carregando…</p></section></main>;
-  if (slug !== data.professional.slug) return <main className="public-shell"><section className="public-card"><p className="eyebrow">Link não encontrado</p><h1>Não encontramos este profissional.</h1><p className="lead">Confira o endereço com quem te enviou o link.</p></section></main>;
-  if (action === 'agendar') return <Booking data={data} update={update} topic={topic} />;
+  if (!data) return <Loading />;
+  if (slug !== data.professional.slug) return <NotFound />;
+  if (action === 'agendar') return <Booking data={data} topic={topic} submit={input => update(d => submitRequest(d, input))} />;
   return <PublicProfile data={data} />;
 }

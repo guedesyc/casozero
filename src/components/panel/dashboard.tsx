@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ChevronRight, NotebookPen } from 'lucide-react';
 import { addDays, formatDayMonth, formatLong, today } from '@/lib/dates';
-import { ClinicData, ensureNote, setAppointmentStatus, useClinic, viewingAsSecretary } from '@/services/clinic';
+import { ClinicData, ensureNote, flushClinic, setAppointmentStatus, useClinic, viewingAsSecretary } from '@/services/clinic';
 import { isPast } from '@/services/scheduling';
 import { Appointment } from '@/types';
 import { APPOINTMENT_LABELS, Badge, Block, initials, PageTitle } from './shell';
@@ -20,7 +20,7 @@ function Greeting({ name }: { name: string }) {
 export function AppointmentRow({ appointment, data, update, showDate = false, owner }: { appointment: Appointment; data: ClinicData; update: Update; showDate?: boolean; owner?: string }) {
   const note = data.notes.find(n => n.appointmentId === appointment.id);
   const href = appointment.kind === 'triage' ? `/app/solicitacoes/detalhe/?id=${appointment.requestId}` : `/app/pacientes/detalhe/?id=${appointment.patientId}`;
-  const openNote = () => { const created = update(d => ensureNote(d, appointment.id)); if (created) window.location.href = `/app/pacientes/detalhe/?id=${appointment.patientId}&sessao=${created.id}`; };
+  const openNote = async () => { const created = update(d => ensureNote(d, appointment.id)); if (!created) return; await flushClinic(); window.location.href = `/app/pacientes/detalhe/?id=${appointment.patientId}&sessao=${created.id}`; };
   const pending = appointment.status === 'scheduled' && isPast(appointment.date, appointment.time);
   // A secretária vê horário, nome e situação; nunca abre paciente nem caderneta.
   const secretary = viewingAsSecretary(data);
@@ -42,6 +42,8 @@ export function Dashboard({ data, update }: { data: ClinicData; update: Update }
   const todays = data.appointments.filter(a => a.date === d && a.status !== 'canceled').sort((a, b) => a.time.localeCompare(b.time));
   const upcomingTriages = data.appointments.filter(a => a.kind === 'triage' && a.status === 'scheduled' && a.date >= d && a.date <= addDays(d, 7));
   const unrecorded = data.appointments.filter(a => a.kind === 'session' && a.status === 'scheduled' && a.date < d).sort((a, b) => b.date.localeCompare(a.date));
+  // Triagens confirmadas cujo horário já passou e que ainda não tiveram o resultado registrado.
+  const triagesWithoutOutcome = data.requests.filter(r => r.status === 'confirmed' && r.scheduledDate && r.scheduledTime && isPast(r.scheduledDate, r.scheduledTime));
   const active = data.patients.filter(p => p.status === 'active').length;
   return <section className="page">
     <PageTitle eyebrow={formatLong(d)} title={<Greeting name={data.professional.name} />} text="Aqui está o que precisa da sua atenção." />
@@ -59,6 +61,7 @@ export function Dashboard({ data, update }: { data: ClinicData; update: Update }
         {pending.length ? pending.slice(0, 5).map(r => <Link key={r.id} href={`/app/solicitacoes/detalhe/?id=${r.id}`} className="request-row"><span className="initials">{initials(r.name)}</span><span><strong>{r.name}</strong><small>{r.category} · pediu {formatDayMonth(r.requestedDate)}, {r.requestedTime}</small></span><ChevronRight size={16} /></Link>) : <p className="muted">Nenhum pedido aguardando. Divulgue seu <Link href="/app/meu-link">link</Link>.</p>}
       </Block>
     </div>
+    {triagesWithoutOutcome.length > 0 && <Block title={`Triagens sem resultado (${triagesWithoutOutcome.length})`} className="spaced"><p className="muted">A triagem já aconteceu. Registre se o atendimento vai continuar.</p>{triagesWithoutOutcome.map(r => <Link key={r.id} href={`/app/solicitacoes/detalhe/?id=${r.id}`} className="request-row"><span className="initials">{initials(r.name)}</span><span><strong>{r.name}</strong><small>{r.category} · triagem em {formatDayMonth(r.scheduledDate!)}, {r.scheduledTime}</small></span><ChevronRight size={16} /></Link>)}</Block>}
     {unrecorded.length > 0 && <Block title={`Sessões sem registro (${unrecorded.length})`} className="spaced"><p className="muted">Sessões que já passaram e ainda não foram marcadas como realizadas, falta ou canceladas.</p>{unrecorded.slice(0, 6).map(a => <AppointmentRow key={a.id} appointment={a} data={data} update={update} showDate />)}</Block>}
   </section>;
 }

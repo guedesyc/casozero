@@ -6,7 +6,7 @@ import { CalendarDays, Check, Clock3, CreditCard, ExternalLink, Inbox, LayoutDas
 import { formatBRL, PLANS } from '@/config/plans';
 import { PROFESSIONS } from '@/config/professions';
 import { supabase } from '@/lib/supabase';
-import { ClinicData, markWelcomeSeen, resetClinic, setClinicOwner, setViewAs, useClinic, viewingAsSecretary } from '@/services/clinic';
+import { ClinicData, flushClinic, markWelcomeSeen, resetClinic, setClinicOwner, setViewAs, SYNC_ERROR_EVENT, useClinic, viewingAsSecretary } from '@/services/clinic';
 import { Avatar } from '@/components/public/profile';
 import { AppointmentStatus, PatientStatus, RequestStatus } from '@/types';
 import { BrandLockup } from '@/components/ui/brand';
@@ -53,6 +53,12 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
   const { data, update } = useClinic();
   const [auth, setAuth] = useState<'checking' | 'demo' | 'ok'>('checking');
   const [open, setOpen] = useState(false);
+  const [syncError, setSyncError] = useState('');
+  useEffect(() => {
+    const onError = (e: Event) => setSyncError((e as CustomEvent<string>).detail);
+    window.addEventListener(SYNC_ERROR_EVENT, onError);
+    return () => window.removeEventListener(SYNC_ERROR_EVENT, onError);
+  }, []);
   useEffect(() => {
     if (!supabase) { setAuth('demo'); return; }
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -63,7 +69,7 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
     });
   }, []);
   useEffect(() => setOpen(false), [pathname]);
-  if (auth === 'checking' || !data) return <main className="app-loading">Carregando…</main>;
+  if (auth === 'checking' || !data) return <main className="app-loading">{syncError ? <span className="load-error">{syncError} <button onClick={() => window.location.reload()}>Tentar de novo</button></span> : 'Carregando…'}</main>;
   const pending = data.requests.filter(r => r.status === 'pending').length;
   const normalized = pathname.replace(/\/$/, '') || '/app';
   const isActive = (href: string) => href === '/app' || href === '/app/configuracoes' ? normalized === href : normalized.startsWith(href);
@@ -88,12 +94,13 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
     </aside>
     <main className="panel-main">
       {auth === 'demo' && <div className="demo-banner">Modo demonstração: os dados ficam salvos apenas neste navegador. <button onClick={() => { if (confirm('Apagar tudo o que foi feito e voltar aos dados de exemplo?')) resetClinic(); }}>Restaurar exemplo</button></div>}
-      {secretary && <div className="viewas-banner">Você está vendo o painel como <b>{secretary.name}</b> (secretária): só a agenda, sem caderneta. <button onClick={() => { update(d => setViewAs(d, undefined)); window.location.href = '/app/equipe'; }}>Voltar ao painel de {pro.name.split(' ')[0]}</button></div>}
+      {syncError && <div className="sync-error" role="alert">{syncError} <button onClick={() => setSyncError('')} aria-label="Fechar aviso"><X size={14} /></button></div>}
+      {secretary && <div className="viewas-banner">Você está vendo o painel como <b>{secretary.name}</b> (secretária): só a agenda, sem caderneta. <button onClick={async () => { update(d => setViewAs(d, undefined)); await flushClinic(); window.location.href = '/app/equipe'; }}>Voltar ao painel de {pro.name.split(' ')[0]}</button></div>}
       {blocked
         ? <section className="page empty"><h1>Acesso restrito</h1><p className="muted">A secretária acessa apenas a agenda.</p><Link className="primary small" href="/app/agenda">Abrir agenda</Link></section>
         : children(data, update)}
     </main>
-    {auth === 'ok' && !secretary && data.welcomeSeen === false && <WelcomeFree close={() => update(d => markWelcomeSeen(d))} name={pro.name} />}
+    {auth === 'ok' && !secretary && data.plan === 'gratis' && data.welcomeSeen === false && <WelcomeFree close={() => update(d => markWelcomeSeen(d))} name={pro.name} />}
   </div>;
 }
 

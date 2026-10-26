@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { CalendarCheck, CalendarClock, ChevronRight, ClipboardCheck, MessageCircle, X } from 'lucide-react';
 import { addDays, formatDayMonth, formatLong, formatStamp, WEEKDAYS, weekdayOf } from '@/lib/dates';
-import { ClinicData, completeTriage, confirmRequest, declineRequest, useClinic } from '@/services/clinic';
+import { ClinicData, completeTriage, confirmRequest, declineRequest, flushClinic, useClinic } from '@/services/clinic';
 import { availableDates, freeSlots, isPast } from '@/services/scheduling';
 import { Slot, SlotPicker } from '@/components/ui/slot-picker';
 import { Frequency, RequestStatus, TriageRequest } from '@/types';
@@ -109,9 +109,10 @@ function OutcomeDialog({ request, update, close }: { request: TriageRequest; upd
   const [frequency, setFrequency] = useState<Frequency>('weekly');
   const [startDate, setStartDate] = useState(addDays(base, 7));
   const [error, setError] = useState('');
-  function save() {
+  async function save() {
     const result = update(d => completeTriage(d, request.id, { continues: Boolean(continues), note, recurrence: continues ? { weekday, time, frequency, startDate } : undefined }));
     if (result.error) { setError(result.error); return; }
+    await flushClinic();
     if (result.value) window.location.href = `/app/pacientes/detalhe/?id=${result.value.id}`; else close();
   }
   return <Dialog title="Resultado da triagem" close={close}>
