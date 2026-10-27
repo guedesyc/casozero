@@ -13,8 +13,8 @@ import { Badge, Block, FormError, initials, PageTitle, REQUEST_LABELS } from './
 
 type Update = ReturnType<typeof useClinic>['update'];
 const TABS: { key: string; label: string; match: RequestStatus[] }[] = [
-  { key: 'pending', label: 'Aguardando você', match: ['pending'] },
-  { key: 'confirmed', label: 'Triagens marcadas', match: ['proposed', 'awaiting_payment', 'confirmed'] },
+  { key: 'pending', label: 'Aguardando você', match: ['pending', 'awaiting_payment'] },
+  { key: 'confirmed', label: 'Triagens marcadas', match: ['proposed', 'confirmed'] },
   { key: 'closed', label: 'Encerradas', match: ['continued', 'not_continued', 'declined'] },
 ];
 

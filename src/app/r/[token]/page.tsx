@@ -123,7 +123,7 @@ export default function TrackPage({ params }: { params: Promise<{ token: string 
       <button type="button" className="secondary small" onClick={() => { navigator.clipboard?.writeText(info.pixKey!); setCopied(true); }}>{copied ? <><Check size={14} /> Chave copiada</> : <><Copy size={14} /> Copiar chave PIX</>}</button>
       {paidAt
         ? <p className="paid-note"><Check size={15} /> Pagamento informado em {formatStamp(paidAt)}. {first} vai confirmar o sinal e a vaga fica firmada.</p>
-        : info.status === 'awaiting_payment' && <button type="button" className="primary full paid-button" onClick={markPaid} disabled={reporting}>{reporting ? 'Registrando…' : 'Já paguei'}</button>}
+        : info.status === 'awaiting_payment' && <button type="button" className="primary full paid-button" onClick={() => { const link = waLink(paidText); if (link) window.open(link, '_blank', 'noopener'); markPaid(); }} disabled={reporting}>{reporting ? 'Registrando…' : 'Já paguei'}</button>}
       {paidNotice && waLink(paidText) && <a className="secondary full track-contact" href={waLink(paidText)} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Avisar {first} que já fiz o PIX</a>}
     </div>}
 
