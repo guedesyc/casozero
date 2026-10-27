@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabase';
 import { toPlanId } from '@/config/plans';
 import { addDays, iso } from '@/lib/dates';
-import { AccountSettings, Appointment, Patient, Professional, SessionNote, TeamMember, TriageRequest } from '@/types';
+import { AccountSettings, Appointment, Patient, Professional, RequestStatus, SessionNote, TeamMember, TriageRequest } from '@/types';
 import type { ClinicData, ClinicOwner, NewRequest, Outcome } from './clinic';
 
 /**
@@ -27,7 +27,7 @@ type Row = Record<string, unknown>;
 function professionalRow(data: ClinicData, ownerId: string): Row {
   const p = data.professional;
   const settings: Settings = {
-    account: { notifyNewRequest: data.account.notifyNewRequest, notifyDailyAgenda: data.account.notifyDailyAgenda, remindPatients: data.account.remindPatients, reminderHours: data.account.reminderHours, twoFactor: data.account.twoFactor },
+    account: { notifyNewRequest: data.account.notifyNewRequest, notifyDailyAgenda: data.account.notifyDailyAgenda, remindPatients: data.account.remindPatients, reminderHours: data.account.reminderHours, twoFactor: data.account.twoFactor, pixKey: data.account.pixKey, pixHolder: data.account.pixHolder, signalAmount: data.account.signalAmount },
     team: data.team, welcomeSeen: data.welcomeSeen, viewAs: data.viewAs,
   };
   return {
@@ -55,6 +55,7 @@ function fromProfessionalRow(row: Row): { professional: Professional; account: A
       email: (row.email as string) ?? '', phone: (row.phone as string) ?? '',
       notifyNewRequest: settings.account?.notifyNewRequest ?? true, notifyDailyAgenda: settings.account?.notifyDailyAgenda ?? true,
       remindPatients: settings.account?.remindPatients ?? false, reminderHours: settings.account?.reminderHours ?? 24, twoFactor: false,
+      pixKey: settings.account?.pixKey ?? '', pixHolder: settings.account?.pixHolder ?? '', signalAmount: settings.account?.signalAmount ?? '',
     },
     team: settings.team ?? [], welcomeSeen: settings.welcomeSeen, viewAs: settings.viewAs,
   };
@@ -67,7 +68,7 @@ const requestRow = (r: TriageRequest, ownerId: string): Row => ({
   status: r.status, decline_reason: r.declineReason ?? null, outcome_note: r.outcomeNote ?? null, patient_id: r.patientId ?? null,
 });
 const fromRequestRow = (row: Row): TriageRequest => ({
-  id: row.id as string, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, guardianName: (row.guardian_name as string) ?? undefined,
+  id: row.id as string, trackToken: (row.track_token as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, guardianName: (row.guardian_name as string) ?? undefined,
   category: row.category as string, service: (row.service as string) ?? undefined, concern: (row.concern as string) ?? '', expectation: (row.expectation as string) ?? '', modality: (row.modality as TriageRequest['modality']) ?? undefined,
   requestedDate: row.requested_date as string, requestedTime: hhmm(row.requested_time as string)!, scheduledDate: (row.scheduled_date as string) ?? undefined, scheduledTime: hhmm(row.scheduled_time as string),
   status: row.status as TriageRequest['status'], createdAt: row.created_at as string, declineReason: (row.decline_reason as string) ?? undefined,
@@ -272,5 +273,26 @@ export async function submitPublicRequest(slug: string, input: NewRequest): Prom
     const code = Object.keys(SUBMIT_ERRORS).find(key => error.message.includes(key));
     return { error: code ? SUBMIT_ERRORS[code] : 'Não foi possível enviar o pedido agora. Tente de novo em instantes.' };
   }
-  return { value: { ...input, id: (data as { id: string }).id, status: 'pending', createdAt: new Date().toISOString() } };
+  const result = data as { id: string; trackToken: string };
+  return { value: { ...input, id: result.id, trackToken: result.trackToken, status: 'pending', createdAt: new Date().toISOString() } };
+}
+
+/** Código do link de acompanhamento da solicitação (cria se não existir). */
+export async function ensureTrackingToken(requestId: string): Promise<string | undefined> {
+  if (!supabase) return undefined;
+  const { data, error } = await supabase.rpc('ensure_tracking_token', { p_request_id: requestId });
+  return error ? undefined : (data as string);
+}
+
+/** Dados que o paciente vê no link de acompanhamento. */
+export interface TrackedRequest {
+  status: RequestStatus; name: string; service?: string; category: string;
+  requestedDate: string; requestedTime: string; scheduledDate?: string; scheduledTime?: string;
+  professional: string; slug: string; pixKey?: string; pixHolder?: string; signalAmount?: string; contactPhone?: string;
+}
+
+export async function fetchByTrackingToken(token: string): Promise<TrackedRequest | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('get_request_by_token', { p_token: token });
+  return error || !data ? null : (data as TrackedRequest);
 }

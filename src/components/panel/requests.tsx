@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { CalendarCheck, CalendarClock, ChevronRight, ClipboardCheck, MessageCircle, X } from 'lucide-react';
 import { addDays, formatDayMonth, formatLong, formatStamp, WEEKDAYS, weekdayOf } from '@/lib/dates';
 import { ClinicData, completeTriage, confirmRequest, declineRequest, flushClinic, useClinic } from '@/services/clinic';
+import { ensureTrackingToken } from '@/services/remote';
+import { formatMoney } from '@/config/plans';
 import { availableDates, freeSlots, isPast } from '@/services/scheduling';
 import { Slot, SlotPicker } from '@/components/ui/slot-picker';
 import { Frequency, RequestStatus, TriageRequest } from '@/types';
@@ -38,6 +40,7 @@ const whatsapp = (phone: string, text: string) => `https://wa.me/55${phone.repla
 export function RequestDetail({ id, data, update }: { id?: string; data: ClinicData; update: Update }) {
   const request = data.requests.find(r => r.id === id);
   const [mode, setMode] = useState<'none' | 'reschedule' | 'decline' | 'outcome'>('none');
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const [reason, setReason] = useState('');
   const [slot, setSlot] = useState<Slot>();
   const [error, setError] = useState('');
@@ -51,7 +54,22 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
   const date = request.scheduledDate ?? request.requestedDate;
   const time = request.scheduledTime ?? request.requestedTime;
   const triageHappened = request.status === 'confirmed' && isPast(date, time);
-  const confirmText = `Olá, ${first}! Aqui é ${proFirst}. Sua triagem está confirmada para ${formatLong(date)}, às ${time}.`;
+  // Mensagem de confirmação: reserva, sinal por PIX (configurado na Conta) e link de acompanhamento.
+  const confirmMessage = (trackingLink?: string) => {
+    const { pixKey, pixHolder, signalAmount } = data.account;
+    const lines = [`Olá, ${first}! Aqui é ${proFirst}. Sua reserva da triagem está confirmada para ${formatLong(date)}, às ${time}.`];
+    if (pixKey) lines.push(`Para firmar a vaga, faça o PIX${signalAmount ? ` de ${formatMoney(signalAmount)}` : ' da triagem'} na chave ${pixKey}${pixHolder ? ` (${pixHolder})` : ''}.`);
+    if (trackingLink) lines.push(`Acompanhe o seu pedido por este link: ${trackingLink}`);
+    lines.push('Qualquer dúvida, é só responder esta mensagem.');
+    return lines.join('\n\n');
+  };
+  async function sendWhatsapp(target: TriageRequest) {
+    setSendingWhatsapp(true);
+    const token = await ensureTrackingToken(target.id).catch(() => undefined);
+    setSendingWhatsapp(false);
+    const link = token ? `${window.location.origin}/r/${token}` : undefined;
+    window.open(whatsapp(target.phone, confirmMessage(link)), '_blank', 'noopener');
+  }
   const patient = request.patientId && data.patients.find(p => p.id === request.patientId);
 
   return <section className="page detail">
@@ -76,7 +94,7 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
             <button className="ghost-danger full" onClick={() => setMode('decline')}>Recusar pedido</button>
           </div>}
           {request.status === 'confirmed' && <div className="stack-buttons">
-            <a className="secondary full" href={whatsapp(request.phone, confirmText)} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Avisar pelo WhatsApp</a>
+            <button className="secondary full" onClick={() => sendWhatsapp(request)} disabled={sendingWhatsapp}><MessageCircle size={16} /> {sendingWhatsapp ? 'Preparando…' : 'Avisar pelo WhatsApp'}</button>
             {triageHappened ? <button className="primary full" onClick={() => setMode('outcome')}><ClipboardCheck size={16} /> Registrar resultado da triagem</button>
               : <><button className="secondary full" onClick={() => { setError(''); setMode('reschedule'); }}><CalendarClock size={16} /> Remarcar</button><button className="primary full" onClick={() => setMode('outcome')}><ClipboardCheck size={16} /> Registrar resultado</button></>}
           </div>}

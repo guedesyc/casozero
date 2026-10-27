@@ -234,7 +234,8 @@ export function submitRequest(data: ClinicData, input: NewRequest): Outcome<Tria
   const taken = data.requests.some(r => r.status === 'pending' && r.requestedDate === input.requestedDate && r.requestedTime === input.requestedTime);
   const conflict = findConflict(data.professional, data.appointments, input.requestedDate, input.requestedTime, data.professional.availability.triageMinutes);
   if (taken || conflict) return { error: 'Esse horário acabou de ser reservado. Escolha outro, por favor.' };
-  const request: TriageRequest = { ...input, id: uid(), status: 'pending', createdAt: new Date().toISOString() };
+  const trackToken = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, '0')).join('');
+  const request: TriageRequest = { ...input, id: uid(), status: 'pending', createdAt: new Date().toISOString(), trackToken };
   data.requests.unshift(request);
   return { value: request };
 }

@@ -115,6 +115,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
       <p className="eyebrow">Pedido enviado</p>
       <h1>Tudo certo, {sent.name.split(' ')[0]}!</h1>
       <p className="lead">Seu pedido de triagem para <b>{formatLong(sent.requestedDate)}, às {sent.requestedTime}</b> foi enviado. {first} vai confirmar pelo telefone {sent.phone}.</p>
+      {sent.trackToken && <TrackingBox token={sent.trackToken} />}
       <ul className="checks"><li><Check size={15} /> Não é preciso pagar nada agora.</li><li><Check size={15} /> Se o horário não puder ser mantido, você receberá outra sugestão.</li></ul>
       <Link className="secondary" href={`/${professional.slug}`}>Voltar para a página de {first}</Link>
     </div>}
@@ -123,4 +124,15 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
 
 function Row({ label, value, edit }: { label: string; value: string; edit: () => void }) {
   return <div><dt>{label}<button type="button" onClick={edit}>Alterar</button></dt><dd>{value}</dd></div>;
+}
+
+/** Link de acompanhamento do pedido, com cópia. Guarde-o: é por ele que o paciente vê o andamento. */
+function TrackingBox({ token }: { token: string }) {
+  const [copied, setCopied] = useState(false);
+  const link = `${typeof window !== 'undefined' ? window.location.origin : ''}/r/${token}`;
+  return <div className="track-box">
+    <p>Acompanhe o seu pedido por este link:</p>
+    <code>{link.replace(/^https?:\/\//, '')}</code>
+    <button type="button" className="secondary small" onClick={() => { navigator.clipboard?.writeText(link); setCopied(true); }}>{copied ? <><Check size={14} /> Copiado</> : 'Copiar link'}</button>
+  </div>;
 }

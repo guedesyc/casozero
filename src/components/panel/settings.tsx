@@ -289,6 +289,11 @@ export function AccountPage({ data, update }: { data: ClinicData; update: Update
       <Block title="Dados de acesso">
         <label className="field"><span>E-mail de login</span><input type="email" value={loginEmail} readOnly /></label>
         <label className="field"><span>Celular <small>Para contato e recuperação da conta</small></span><input type="tel" value={value.phone} onChange={e => setValue({ ...value, phone: e.target.value })} /></label>
+        <label className="field"><span>Chave PIX <small>Para o sinal da triagem</small></span><input value={value.pixKey} onChange={e => setValue({ ...value, pixKey: e.target.value })} placeholder="CPF, e-mail, celular ou chave aleatória" /></label>
+        <div className="field-row">
+          <label className="field"><span>Titular da chave</span><input value={value.pixHolder} onChange={e => setValue({ ...value, pixHolder: e.target.value })} /></label>
+          <label className="field"><span>Valor do sinal <small>Opcional</small></span><input inputMode="decimal" value={value.signalAmount} onChange={e => setValue({ ...value, signalAmount: e.target.value })} onBlur={e => setValue({ ...value, signalAmount: formatMoney(e.target.value) })} placeholder="R$ 0,00" /></label>
+        </div>
         <p className="muted">Plano atual: <b>{PLANS[data.plan].name}</b>.</p>
       </Block>
       <Block title="Senha">

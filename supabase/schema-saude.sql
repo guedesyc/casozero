@@ -94,6 +94,7 @@ create table if not exists public.triage_requests (
   outcome_note    text check (outcome_note is null or char_length(outcome_note) <= 5000),
   patient_id      uuid,
   consent_at      timestamptz,
+  track_token     text unique,
   created_at      timestamptz not null default now(),
   unique (professional_id, id)
 );
@@ -271,7 +272,7 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Pedido de triagem com todas as validações no servidor.
-drop function if exists public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time);
+drop function if exists public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text);
 create or replace function public.submit_triage_request(
   p_slug text, p_name text, p_age int, p_phone text, p_guardian_name text, p_category text,
   p_concern text, p_expectation text, p_modality text, p_date date, p_time time, p_service text default null
@@ -285,10 +286,10 @@ declare
   slot_end timestamp;
   digits text := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
   new_id uuid;
+  new_token text := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
 begin
   select * into pro from public.professionals where slug = lower(p_slug);
   if not found then raise exception 'PROFISSIONAL_NAO_ENCONTRADO' using errcode = 'P0001'; end if;
-  -- Um pedido por vez por profissional, para não haver corrida entre dois pacientes.
   perform pg_advisory_xact_lock(hashtext(pro.id::text));
 
   triage := coalesce((pro.availability ->> 'triageMinutes')::int, 30);
@@ -298,29 +299,25 @@ begin
   if char_length(digits) not between 10 and 13 then raise exception 'TELEFONE_INVALIDO' using errcode = 'P0001'; end if;
   if p_age is not null and p_age < 18 and char_length(trim(coalesce(p_guardian_name, ''))) < 2 then raise exception 'RESPONSAVEL_OBRIGATORIO' using errcode = 'P0001'; end if;
 
-  -- Antecedência mínima e horizonte do calendário.
   if slot_start < local_now + coalesce((pro.availability ->> 'minNoticeHours')::int, 12) * interval '1 hour'
      or p_date > local_now::date + coalesce((pro.availability ->> 'horizonDays')::int, 30) then
     raise exception 'HORARIO_INDISPONIVEL' using errcode = 'P0001';
   end if;
 
-  -- Dentro da janela do dia e alinhado à duração da triagem.
   select w into win from jsonb_array_elements(pro.availability -> 'windows') w
    where (w ->> 'weekday')::int = extract(dow from p_date)::int and (w ->> 'enabled')::boolean;
   if win is null or p_time < (win ->> 'start')::time or (p_time + triage * interval '1 minute') > (win ->> 'end')::time
-     or (p_time + triage * interval '1 minute') <= p_time  -- não atravessa a meia-noite
+     or (p_time + triage * interval '1 minute') <= p_time
      or (extract(epoch from (p_time - (win ->> 'start')::time)) / 60)::int % triage <> 0 then
     raise exception 'HORARIO_INDISPONIVEL' using errcode = 'P0001';
   end if;
 
-  -- Bloqueios da agenda.
   if exists (select 1 from jsonb_array_elements(coalesce(pro.availability -> 'blocks', '[]')) b
              where (b ->> 'date')::date = p_date
                and ((b ->> 'allDay')::boolean or ((b ->> 'start')::time < (p_time + triage * interval '1 minute') and p_time < (b ->> 'end')::time))) then
     raise exception 'HORARIO_INDISPONIVEL' using errcode = 'P0001';
   end if;
 
-  -- Compromissos e outros pedidos pendentes no mesmo intervalo.
   if exists (select 1 from public.appointments a where a.professional_id = pro.id and a.status <> 'canceled'
                and a.starts_at < slot_end and slot_start < a.ends_at)
      or exists (select 1 from public.triage_requests r where r.professional_id = pro.id and r.status = 'pending'
@@ -329,21 +326,65 @@ begin
     raise exception 'HORARIO_OCUPADO' using errcode = 'P0001';
   end if;
 
-  -- Contra abuso: no máximo 2 pedidos pendentes por telefone e 100 pendentes por profissional.
   if (select count(*) from public.triage_requests r where r.professional_id = pro.id and r.status = 'pending'
         and regexp_replace(r.phone, '\D', '', 'g') = digits) >= 2
      or (select count(*) from public.triage_requests r where r.professional_id = pro.id and r.status = 'pending') >= 100 then
     raise exception 'MUITOS_PEDIDOS' using errcode = 'P0001';
   end if;
 
-  insert into public.triage_requests (professional_id, name, age, phone, guardian_name, category, service, concern, expectation, modality, requested_date, requested_time, consent_at)
+  insert into public.triage_requests (professional_id, name, age, phone, guardian_name, category, service, concern, expectation, modality, requested_date, requested_time, consent_at, track_token)
   values (pro.id, trim(p_name), p_age, trim(p_phone), nullif(trim(coalesce(p_guardian_name, '')), ''), left(coalesce(nullif(trim(p_category), ''), 'Outro assunto'), 80),
           nullif(left(trim(coalesce(p_service, '')), 120), ''),
           left(coalesce(p_concern, ''), 2000), left(coalesce(p_expectation, ''), 2000),
-          case when p_modality in ('online','presencial') then p_modality end, p_date, p_time, now())
+          case when p_modality in ('online','presencial') then p_modality end, p_date, p_time, now(), new_token)
   returning id into new_id;
-  return jsonb_build_object('id', new_id);
+  return jsonb_build_object('id', new_id, 'trackToken', new_token);
 end $$;
+
+-- Dono da solicitação pede o código de acompanhamento (cria se ainda não existir).
+create or replace function public.ensure_tracking_token(p_request_id uuid)
+returns text language plpgsql security definer set search_path = '' as $$
+declare t text;
+begin
+  select r.track_token into t from public.triage_requests r
+   where r.id = p_request_id and r.professional_id = (select auth.uid());
+  if not found then raise exception 'NAO_ENCONTRADO' using errcode = 'P0001'; end if;
+  if t is null then
+    t := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+    update public.triage_requests set track_token = t where id = p_request_id;
+  end if;
+  return t;
+end $$;
+
+-- Paciente abre o link: só o necessário para acompanhar (sem dados de outros pacientes).
+create or replace function public.get_request_by_token(p_token text)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'status', r.status,
+    'name', split_part(r.name, ' ', 1),
+    'service', r.service,
+    'category', r.category,
+    'requestedDate', r.requested_date,
+    'requestedTime', to_char(r.requested_time, 'HH24:MI'),
+    'scheduledDate', r.scheduled_date,
+    'scheduledTime', to_char(r.scheduled_time, 'HH24:MI'),
+    'professional', p.name,
+    'slug', p.slug,
+    'pixKey', nullif(p.settings -> 'account' ->> 'pixKey', ''),
+    'pixHolder', nullif(p.settings -> 'account' ->> 'pixHolder', ''),
+    'signalAmount', nullif(p.settings -> 'account' ->> 'signalAmount', ''),
+    'contactPhone', nullif(p.settings -> 'account' ->> 'phone', '')
+  )
+  from public.triage_requests r join public.professionals p on p.id = r.professional_id
+  where r.track_token = p_token and char_length(p_token) between 40 and 80;
+$$;
+
+revoke all on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
+  public.ensure_tracking_token(uuid), public.get_request_by_token(text) from public, anon, authenticated;
+grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
+grant execute on function public.ensure_tracking_token(uuid) to authenticated;
+grant execute on function public.get_request_by_token(text) to anon, authenticated;
+
 
 -- Endereço livre para o link (para o cadastro e a troca em "Meu link").
 create or replace function public.slug_available(p_slug text)
@@ -354,11 +395,14 @@ $$;
 
 revoke all on function public.get_public_profile(text), public.get_busy_slots(text, date, date),
   public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
-  public.slug_available(text), public.enforce_patient_limit(), public.is_reserved_slug(text), public.touch_updated_at() from public, anon, authenticated;
+  public.slug_available(text), public.enforce_patient_limit(), public.is_reserved_slug(text), public.touch_updated_at(),
+  public.ensure_tracking_token(uuid), public.get_request_by_token(text) from public, anon, authenticated;
 grant execute on function public.get_public_profile(text) to anon, authenticated;
 grant execute on function public.get_busy_slots(text, date, date) to anon, authenticated;
 grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
 grant execute on function public.slug_available(text) to authenticated;
+grant execute on function public.ensure_tracking_token(uuid) to authenticated;
+grant execute on function public.get_request_by_token(text) to anon, authenticated;
 grant execute on function public.is_reserved_slug(text) to anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------

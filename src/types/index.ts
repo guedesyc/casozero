@@ -51,6 +51,10 @@ export interface Professional {
 export interface AccountSettings {
   email: string;
   phone: string;
+  /** Chave PIX para o sinal da triagem, titular e valor (texto livre, ex.: "R$ 60,00"). */
+  pixKey: string;
+  pixHolder: string;
+  signalAmount: string;
   notifyNewRequest: boolean;
   notifyDailyAgenda: boolean;
   remindPatients: boolean;
@@ -73,6 +77,8 @@ export interface TriageRequest {
   phone: string;
   guardianName?: string;
   category: string;
+  /** Código do link de acompanhamento (/r/<código>). Só o profissional e o paciente têm. */
+  trackToken?: string;
   /** Serviço escolhido pelo paciente (nome do serviço cadastrado pela profissional). */
   service?: string;
   /** O que a pessoa procura tratar. */

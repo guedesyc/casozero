@@ -44,6 +44,9 @@ export const demoProfessional: Professional = {
 export const demoAccount: AccountSettings = {
   email: 'anaclara@exemplo.com',
   phone: '(71) 90000-0000',
+  pixKey: '',
+  pixHolder: '',
+  signalAmount: '',
   notifyNewRequest: true,
   notifyDailyAgenda: true,
   remindPatients: true,
