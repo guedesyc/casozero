@@ -89,7 +89,7 @@ create table if not exists public.triage_requests (
   requested_time  time not null,
   scheduled_date  date,
   scheduled_time  time,
-  status          text not null default 'pending' check (status in ('pending','awaiting_payment','confirmed','declined','continued','not_continued')),
+  status          text not null default 'pending' check (status in ('pending','proposed','awaiting_payment','confirmed','declined','continued','not_continued')),
   decline_reason  text check (decline_reason is null or char_length(decline_reason) <= 1000),
   outcome_note    text check (outcome_note is null or char_length(outcome_note) <= 5000),
   patient_id      uuid,
@@ -97,6 +97,9 @@ create table if not exists public.triage_requests (
   track_token     text unique,
   payment_reported_at timestamptz,
   paid_at         timestamptz,
+  proposed_date   date,
+  proposed_time   time,
+  proposal_note   text,
   created_at      timestamptz not null default now(),
   unique (professional_id, id)
 );
@@ -370,6 +373,8 @@ returns jsonb language sql stable security definer set search_path = '' as $$
     'requestedTime', to_char(r.requested_time, 'HH24:MI'),
     'scheduledDate', r.scheduled_date,
     'scheduledTime', to_char(r.scheduled_time, 'HH24:MI'),
+    'proposedDate', r.proposed_date,
+    'proposedTime', to_char(r.proposed_time, 'HH24:MI'),
     'paymentReportedAt', r.payment_reported_at,
     'professional', p.name,
     'slug', p.slug,
@@ -383,11 +388,12 @@ returns jsonb language sql stable security definer set search_path = '' as $$
 $$;
 
 revoke all on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
-  public.ensure_tracking_token(uuid), public.get_request_by_token(text), public.report_payment(text) from public, anon, authenticated;
+  public.ensure_tracking_token(uuid), public.get_request_by_token(text), public.report_payment(text), public.respond_proposal(text, date, time) from public, anon, authenticated;
 grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
 grant execute on function public.ensure_tracking_token(uuid) to authenticated;
 grant execute on function public.get_request_by_token(text) to anon, authenticated;
 grant execute on function public.report_payment(text) to anon, authenticated;
+grant execute on function public.respond_proposal(text, date, time) to anon, authenticated;
 
 
 -- Paciente marca "já paguei" pelo link. Só altera a data do aviso, nada mais.
@@ -401,6 +407,63 @@ returns boolean language sql security definer set search_path = '' as $$
   select exists (select 1 from u);
 $$;
 
+-- Paciente aceita o horário sugerido ou escolhe outro dia no calendário.
+create or replace function public.respond_proposal(p_token text, p_date date default null, p_time time default null)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  r public.triage_requests%rowtype;
+  pro public.professionals%rowtype;
+  win jsonb;
+  triage int;
+  local_now timestamp := now() at time zone 'America/Sao_Paulo';
+  d date; t time; slot_start timestamp; slot_end timestamp;
+  new_status text;
+begin
+  select * into r from public.triage_requests
+   where track_token = p_token and char_length(p_token) between 40 and 80 for update;
+  if not found or r.status <> 'proposed' then raise exception 'SEM_PROPOSTA' using errcode = 'P0001'; end if;
+  select * into pro from public.professionals where id = r.professional_id;
+  perform pg_advisory_xact_lock(hashtext(pro.id::text));
+
+  d := coalesce(p_date, r.proposed_date);
+  t := coalesce(p_time, r.proposed_time);
+  triage := coalesce((pro.availability ->> 'triageMinutes')::int, 30);
+  slot_start := d + t;
+  slot_end := slot_start + triage * interval '1 minute';
+
+  if slot_start < local_now + coalesce((pro.availability ->> 'minNoticeHours')::int, 12) * interval '1 hour'
+     or d > local_now::date + coalesce((pro.availability ->> 'horizonDays')::int, 30) then
+    raise exception 'HORARIO_INDISPONIVEL' using errcode = 'P0001';
+  end if;
+  select w into win from jsonb_array_elements(pro.availability -> 'windows') w
+   where (w ->> 'weekday')::int = extract(dow from d)::int and (w ->> 'enabled')::boolean;
+  if win is null or t < (win ->> 'start')::time or (t + triage * interval '1 minute') > (win ->> 'end')::time
+     or (extract(epoch from (t - (win ->> 'start')::time)) / 60)::int % triage <> 0 then
+    raise exception 'HORARIO_INDISPONIVEL' using errcode = 'P0001';
+  end if;
+  if exists (select 1 from jsonb_array_elements(coalesce(pro.availability -> 'blocks', '[]')) b
+             where (b ->> 'date')::date = d
+               and ((b ->> 'allDay')::boolean or ((b ->> 'start')::time < (t + triage * interval '1 minute') and t < (b ->> 'end')::time))) then
+    raise exception 'HORARIO_INDISPONIVEL' using errcode = 'P0001';
+  end if;
+  if exists (select 1 from public.appointments a where a.professional_id = pro.id and a.status <> 'canceled'
+               and a.starts_at < slot_end and slot_start < a.ends_at)
+     or exists (select 1 from public.triage_requests o where o.professional_id = pro.id and o.status = 'pending'
+               and o.id <> r.id and o.requested_date = d
+               and o.requested_time < (t + triage * interval '1 minute') and t < (o.requested_time + triage * interval '1 minute')) then
+    raise exception 'HORARIO_OCUPADO' using errcode = 'P0001';
+  end if;
+
+  -- Com chave PIX, a vaga só fica firmada depois do sinal.
+  new_status := case when coalesce(pro.settings -> 'account' ->> 'pixKey', '') <> '' then 'awaiting_payment' else 'confirmed' end;
+  update public.triage_requests
+     set scheduled_date = d, scheduled_time = t, proposed_date = null, proposed_time = null, proposal_note = null, status = new_status
+   where id = r.id;
+  insert into public.appointments (professional_id, kind, date, time, minutes, status, request_id, title)
+  values (pro.id, 'triage', d, t, triage, 'scheduled', r.id, r.name);
+  return jsonb_build_object('status', new_status, 'date', d, 'time', to_char(t, 'HH24:MI'));
+end $$;
+
 -- Endereço livre para o link (para o cadastro e a troca em "Meu link").
 create or replace function public.slug_available(p_slug text)
 returns boolean language sql stable security definer set search_path = '' as $$
@@ -411,7 +474,7 @@ $$;
 revoke all on function public.get_public_profile(text), public.get_busy_slots(text, date, date),
   public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
   public.slug_available(text), public.enforce_patient_limit(), public.is_reserved_slug(text), public.touch_updated_at(),
-  public.ensure_tracking_token(uuid), public.get_request_by_token(text), public.report_payment(text) from public, anon, authenticated;
+  public.ensure_tracking_token(uuid), public.get_request_by_token(text), public.report_payment(text), public.respond_proposal(text, date, time) from public, anon, authenticated;
 grant execute on function public.get_public_profile(text) to anon, authenticated;
 grant execute on function public.get_busy_slots(text, date, date) to anon, authenticated;
 grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
@@ -419,6 +482,7 @@ grant execute on function public.slug_available(text) to authenticated;
 grant execute on function public.ensure_tracking_token(uuid) to authenticated;
 grant execute on function public.get_request_by_token(text) to anon, authenticated;
 grant execute on function public.report_payment(text) to anon, authenticated;
+grant execute on function public.respond_proposal(text, date, time) to anon, authenticated;
 grant execute on function public.is_reserved_slug(text) to anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------

@@ -3,9 +3,12 @@ import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
 import { CalendarDays, Check, Copy, MessageCircle } from 'lucide-react';
 import { formatMoney } from '@/config/plans';
-import { formatLong, formatShort, formatStamp } from '@/lib/dates';
+import { formatDayMonth, formatLong, formatShort, formatStamp } from '@/lib/dates';
+import { Slot, SlotPicker } from '@/components/ui/slot-picker';
+import { availableDates, freeSlots } from '@/services/scheduling';
+import { Appointment, Professional } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { fetchByTrackingToken, reportPayment, TrackedRequest } from '@/services/remote';
+import { fetchByTrackingToken, fetchPublic, reportPayment, respondProposal, TrackedRequest } from '@/services/remote';
 
 const TOKEN = /^[A-Za-z0-9_-]{40,80}$/;
 
@@ -16,6 +19,11 @@ export default function TrackPage({ params }: { params: Promise<{ token: string 
   const [copied, setCopied] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [reported, setReported] = useState<string | undefined>();
+  const [choosing, setChoosing] = useState(false);
+  const [slot, setSlot] = useState<Slot>();
+  const [calendar, setCalendar] = useState<{ professional: Professional; busy: Appointment[] } | null>(null);
+  const [responding, setResponding] = useState(false);
+  const [responseError, setResponseError] = useState('');
 
   useEffect(() => {
     if (!TOKEN.test(token)) { setInfo(null); return; }
@@ -34,6 +42,23 @@ export default function TrackPage({ params }: { params: Promise<{ token: string 
   const wait = info.status === 'pending';
   const pix = (info.status === 'pending' || info.status === 'awaiting_payment') && info.pixKey;
   const paidAt = reported ?? info.paymentReportedAt;
+  /** Calendário público da profissional: os dias e horários livres, sem nenhum dado de paciente. */
+  async function openCalendar(slug: string) {
+    setChoosing(true);
+    if (!calendar) {
+      const pub = await fetchPublic(slug);
+      if (pub) setCalendar({ professional: pub.professional, busy: pub.appointments });
+    }
+  }
+  async function accept(picked?: Slot) {
+    setResponding(true); setResponseError('');
+    const result = await respondProposal(token, picked?.date, picked?.time);
+    setResponding(false);
+    if (result.error) { setResponseError(result.error); return; }
+    const fresh = await fetchByTrackingToken(token);
+    if (fresh) setInfo(fresh);
+    setChoosing(false);
+  }
   async function markPaid() {
     setReporting(true);
     const ok = await reportPayment(token);
@@ -47,12 +72,31 @@ export default function TrackPage({ params }: { params: Promise<{ token: string 
     <h1>Olá, {info.name}!</h1>
     <p className="lead">
       {info.status === 'pending' && <>Seu pedido de triagem foi enviado. {first} vai confirmar o horário em breve.</>}
+      {info.status === 'proposed' && <>{first} teve um imprevisto e não poderá atender em {formatLong(info.scheduledDate ?? info.requestedDate)}, às {info.scheduledTime ?? info.requestedTime}.</>}
       {info.status === 'awaiting_payment' && <>Sua vaga com {first} será firmada assim que o sinal por PIX for confirmado.</>}
       {info.status === 'confirmed' && <>Sua reserva da triagem está confirmada com {first}.</>}
       {info.status === 'continued' && <>Seu atendimento com {first} está confirmado. Obrigado pela confiança.</>}
       {info.status === 'declined' && <>Não foi possível atender este pedido. Entre em contato com {first} para mais detalhes.</>}
       {info.status === 'not_continued' && <>A triagem com {first} foi concluída.</>}
     </p>
+
+    {info.status === 'proposed' && info.proposedDate && <div className="track-proposal">
+      <p className="track-proposal-title">Sugestão de horário</p>
+      <p><b>{formatLong(info.proposedDate)}, às {info.proposedTime}</b></p>
+      {!choosing && <>
+        <button type="button" className="primary full" disabled={responding} onClick={() => accept()}>{responding ? 'Confirmando…' : 'Confirmar este horário'}</button>
+        <button type="button" className="secondary full" onClick={() => openCalendar(info.slug)}>Não posso nesse dia: escolher outro</button>
+      </>}
+      {choosing && <>
+        <p className="muted">Escolha um dia e horário disponíveis:</p>
+        {calendar
+          ? <SlotPicker available={availableDates(calendar.professional, calendar.busy, [])} slotsFor={day => freeSlots(calendar.professional, calendar.busy, [], day)} value={slot} onChange={setSlot} />
+          : <p className="muted">Carregando horários…</p>}
+        <button type="button" className="primary full" disabled={!slot || responding} onClick={() => slot && accept(slot)}>{responding ? 'Confirmando…' : slot ? `Confirmar ${formatDayMonth(slot.date)}, ${slot.time}` : 'Escolha um horário'}</button>
+        <button type="button" className="auth-back link-button" onClick={() => setChoosing(false)}>Voltar</button>
+      </>}
+      {responseError && <p className="auth-notice">{responseError}</p>}
+    </div>}
 
     <div className="track-when">
       <CalendarDays size={18} />

@@ -255,6 +255,21 @@ export function confirmRequest(data: ClinicData, id: string, date: string, time:
   return {};
 }
 
+/** A profissional não pode atender na data pedida e sugere outro horário; o paciente aceita pelo link. */
+export function proposeSlot(data: ClinicData, id: string, date: string, time: string): Outcome {
+  const request = data.requests.find(r => r.id === id);
+  if (!request) return { error: 'Solicitação não encontrada.' };
+  const minutes = data.professional.availability.triageMinutes;
+  const conflict = findConflict(data.professional, data.appointments, date, time, minutes, a => a.requestId === id && a.kind === 'triage');
+  if (conflict) return { error: `${conflict} Escolha outro horário para sugerir.` };
+  // O horário anterior sai da agenda; só entra de novo quando o paciente aceitar.
+  data.appointments = data.appointments.filter(a => !(a.requestId === id && a.kind === 'triage'));
+  request.status = 'proposed';
+  request.proposedDate = date;
+  request.proposedTime = time;
+  return {};
+}
+
 /** A profissional confirma que o sinal caiu na conta. */
 export function confirmPayment(data: ClinicData, id: string): Outcome {
   const request = data.requests.find(r => r.id === id);

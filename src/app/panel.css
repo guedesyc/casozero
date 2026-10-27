@@ -238,3 +238,9 @@
 .payment-box .primary{margin-top:8px}
 .paid-note{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#2b6739;margin:10px 0 0}
 .paid-button{margin-top:10px;width:100%}
+
+/* ---------- Sugestão de horário (link do paciente) ---------- */
+.track-proposal{border:1px solid #ecd9a6;background:#fdf8ea;border-radius:10px;padding:14px 16px;margin:18px 0;display:grid;gap:10px}
+.track-proposal p{margin:0;font-size:14px}
+.track-proposal-title{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7a5a12;font-weight:700}
+.track-proposal .slot-picker{margin:6px 0}

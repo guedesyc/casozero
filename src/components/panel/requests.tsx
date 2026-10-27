@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { CalendarCheck, CalendarClock, Check, ChevronRight, ClipboardCheck, MessageCircle, X } from 'lucide-react';
 import { addDays, formatDayMonth, formatLong, formatStamp, WEEKDAYS, weekdayOf } from '@/lib/dates';
-import { ClinicData, completeTriage, confirmPayment, confirmRequest, declineRequest, flushClinic, useClinic } from '@/services/clinic';
+import { ClinicData, completeTriage, confirmPayment, confirmRequest, declineRequest, flushClinic, proposeSlot, useClinic } from '@/services/clinic';
 import { ensureTrackingToken } from '@/services/remote';
 import { formatMoney } from '@/config/plans';
 import { availableDates, freeSlots, isPast } from '@/services/scheduling';
@@ -14,7 +14,7 @@ import { Badge, Block, FormError, initials, PageTitle, REQUEST_LABELS } from './
 type Update = ReturnType<typeof useClinic>['update'];
 const TABS: { key: string; label: string; match: RequestStatus[] }[] = [
   { key: 'pending', label: 'Aguardando você', match: ['pending'] },
-  { key: 'confirmed', label: 'Triagens marcadas', match: ['awaiting_payment', 'confirmed'] },
+  { key: 'confirmed', label: 'Triagens marcadas', match: ['proposed', 'awaiting_payment', 'confirmed'] },
   { key: 'closed', label: 'Encerradas', match: ['continued', 'not_continued', 'declined'] },
 ];
 
@@ -41,6 +41,25 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
   const request = data.requests.find(r => r.id === id);
   const [mode, setMode] = useState<'none' | 'reschedule' | 'decline' | 'outcome'>('none');
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
+  /** Sugestão de outro horário: explica o imprevisto e aponta para o link, sem misturar o PIX. */
+  const suggestionMessage = (target: TriageRequest, suggested: { date: string; time: string }, link?: string) => {
+    const originalDate = target.scheduledDate ?? target.requestedDate;
+    const originalTime = target.scheduledTime ?? target.requestedTime;
+    const lines = [
+      `Olá, ${first}! Aqui é ${proFirst}. Tive um imprevisto e não vou conseguir atender no dia ${formatLong(originalDate)}, às ${originalTime}.`,
+      `Posso sugerir ${formatLong(suggested.date)}, às ${suggested.time}. Se esse horário funcionar, confirme por este link:${link ? `
+${link}` : ''}`,
+      'Se não der para você, pelo mesmo link você escolhe outro dia e horário disponíveis.',
+    ];
+    return lines.join('\n\n');
+  }
+  async function sendSuggestion(target: TriageRequest, suggested: { date: string; time: string }) {
+    setSendingWhatsapp(true);
+    const token = await ensureTrackingToken(target.id).catch(() => undefined);
+    setSendingWhatsapp(false);
+    const link = token ? `${window.location.origin}/r/${token}` : undefined;
+    window.open(whatsapp(target.phone, suggestionMessage(target, suggested, link)), '_blank', 'noopener');
+  }
   const [reason, setReason] = useState('');
   const [slot, setSlot] = useState<Slot>();
   const [error, setError] = useState('');
@@ -93,6 +112,14 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
             <button className="secondary full" onClick={() => { setError(''); setMode('reschedule'); }}><CalendarClock size={16} /> Marcar em outro horário</button>
             <button className="ghost-danger full" onClick={() => setMode('decline')}>Recusar pedido</button>
           </div>}
+          {request.status === 'proposed' && <div className="stack-buttons">
+            <div className="payment-box">
+              <p><b>Horário sugerido</b></p>
+              <p className="muted">{formatLong(request.proposedDate!)}, às {request.proposedTime}. Aguardando a resposta de {first} pelo link.</p>
+            </div>
+            <button className="secondary full" onClick={() => sendSuggestion(request, { date: request.proposedDate!, time: request.proposedTime! })} disabled={sendingWhatsapp}><MessageCircle size={16} /> {sendingWhatsapp ? 'Preparando…' : 'Reenviar sugestão pelo WhatsApp'}</button>
+            <button className="secondary full" onClick={() => { setError(''); setMode('reschedule'); }}><CalendarClock size={16} /> Sugerir outro horário</button>
+          </div>}
           {(request.status === 'awaiting_payment' || request.status === 'confirmed') && <div className="stack-buttons">
             {request.status === 'awaiting_payment' && <div className="payment-box">
               <p><b>Aguardando o sinal por PIX.</b></p>
@@ -112,9 +139,9 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
     </div>
 
     {mode === 'reschedule' && <Dialog title="Escolher outro horário" close={() => setMode('none')}>
-      <p className="muted">Mostrando seus horários livres para triagem. Combine com {first} antes de confirmar.</p>
+      <p className="muted">Escolha um horário livre. Ele fica como sugestão: {first} confirma pelo link, e o paciente também pode escolher outro dia.</p>
       <SlotPicker available={dates} slotsFor={d => freeSlots(data.professional, appointmentsWithoutThis, others, d, new Date(0))} value={slot} onChange={setSlot} />
-      <button className="primary full" disabled={!slot} onClick={() => { const r = update(d => confirmRequest(d, request.id, slot!.date, slot!.time)); setError(r.error ?? ''); if (!r.error) setMode('none'); }}>Confirmar {slot && `${formatDayMonth(slot.date)}, ${slot.time}`}</button>
+      <button className="primary full" disabled={!slot} onClick={async () => { const picked = slot!; const r = update(d => proposeSlot(d, request.id, picked.date, picked.time)); setError(r.error ?? ''); if (!r.error) { setMode('none'); await flushClinic(); await sendSuggestion(request, picked); } }}>Sugerir {slot && `${formatDayMonth(slot.date)}, ${slot.time}`} pelo WhatsApp</button>
       <FormError message={error} />
     </Dialog>}
     {mode === 'decline' && <Dialog title="Recusar pedido" close={() => setMode('none')}>

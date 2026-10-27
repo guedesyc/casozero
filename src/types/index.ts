@@ -64,6 +64,7 @@ export interface AccountSettings {
 
 export type RequestStatus =
   | 'pending'      // paciente pediu, aguardando a profissional
+  | 'proposed'     // profissional sugeriu outro horário; o paciente aceita pelo link
   | 'awaiting_payment' // horário confirmado; aguarda o sinal por PIX
   | 'confirmed'    // triagem marcada e sinal confirmado
   | 'declined'     // profissional recusou o pedido
@@ -80,6 +81,9 @@ export interface TriageRequest {
   category: string;
   /** Quando o paciente marcou "já paguei" pelo link, e quando a profissional confirmou o sinal. */
   paymentReportedAt?: string;
+  /** Horário sugerido pela profissional, quando ela não pode atender na data pedida. */
+  proposedDate?: string;
+  proposedTime?: string;
   paidAt?: string;
   /** Código do link de acompanhamento (/r/<código>). Só o profissional e o paciente têm. */
   trackToken?: string;

@@ -63,12 +63,12 @@ function fromProfessionalRow(row: Row): { professional: Professional; account: A
 
 const requestRow = (r: TriageRequest, ownerId: string): Row => ({
   id: r.id, professional_id: ownerId, name: r.name, age: ageNumber(r.age), phone: r.phone, guardian_name: r.guardianName || null,
-  category: r.category || 'Outro assunto', service: r.service ?? null, payment_reported_at: r.paymentReportedAt ?? null, paid_at: r.paidAt ?? null, concern: r.concern ?? '', expectation: r.expectation ?? '', modality: r.modality ?? null,
+  category: r.category || 'Outro assunto', service: r.service ?? null, payment_reported_at: r.paymentReportedAt ?? null, paid_at: r.paidAt ?? null, proposed_date: r.proposedDate ?? null, proposed_time: r.proposedTime ?? null, concern: r.concern ?? '', expectation: r.expectation ?? '', modality: r.modality ?? null,
   requested_date: r.requestedDate, requested_time: r.requestedTime, scheduled_date: r.scheduledDate ?? null, scheduled_time: r.scheduledTime ?? null,
   status: r.status, decline_reason: r.declineReason ?? null, outcome_note: r.outcomeNote ?? null, patient_id: r.patientId ?? null,
 });
 const fromRequestRow = (row: Row): TriageRequest => ({
-  id: row.id as string, trackToken: (row.track_token as string) ?? undefined, paymentReportedAt: (row.payment_reported_at as string) ?? undefined, paidAt: (row.paid_at as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, guardianName: (row.guardian_name as string) ?? undefined,
+  id: row.id as string, trackToken: (row.track_token as string) ?? undefined, paymentReportedAt: (row.payment_reported_at as string) ?? undefined, proposedDate: (row.proposed_date as string) ?? undefined, proposedTime: hhmm(row.proposed_time as string), paidAt: (row.paid_at as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, guardianName: (row.guardian_name as string) ?? undefined,
   category: row.category as string, service: (row.service as string) ?? undefined, concern: (row.concern as string) ?? '', expectation: (row.expectation as string) ?? '', modality: (row.modality as TriageRequest['modality']) ?? undefined,
   requestedDate: row.requested_date as string, requestedTime: hhmm(row.requested_time as string)!, scheduledDate: (row.scheduled_date as string) ?? undefined, scheduledTime: hhmm(row.scheduled_time as string),
   status: row.status as TriageRequest['status'], createdAt: row.created_at as string, declineReason: (row.decline_reason as string) ?? undefined,
@@ -286,7 +286,7 @@ export async function ensureTrackingToken(requestId: string): Promise<string | u
 
 /** Dados que o paciente vê no link de acompanhamento. */
 export interface TrackedRequest {
-  status: RequestStatus; name: string; service?: string; category: string; paymentReportedAt?: string;
+  status: RequestStatus; name: string; service?: string; category: string; paymentReportedAt?: string; proposedDate?: string; proposedTime?: string;
   requestedDate: string; requestedTime: string; scheduledDate?: string; scheduledTime?: string;
   professional: string; slug: string; pixKey?: string; pixHolder?: string; signalAmount?: string; contactPhone?: string;
 }
@@ -302,4 +302,21 @@ export async function reportPayment(token: string): Promise<boolean> {
   if (!supabase) return false;
   const { data, error } = await supabase.rpc('report_payment', { p_token: token });
   return !error && data === true;
+}
+
+const PROPOSAL_ERRORS: Record<string, string> = {
+  HORARIO_OCUPADO: 'Esse horário acabou de ser ocupado. Escolha outro, por favor.',
+  HORARIO_INDISPONIVEL: 'Esse horário não está mais disponível. Escolha outro, por favor.',
+  SEM_PROPOSTA: 'Este pedido não tem mais um horário sugerido. Atualize a página.',
+};
+
+/** Paciente aceita o horário sugerido (sem data) ou escolhe outro dia (com data e hora). */
+export async function respondProposal(token: string, date?: string, time?: string): Promise<{ error?: string; status?: string }> {
+  if (!supabase) return { error: 'Sem conexão com o servidor.' };
+  const { data, error } = await supabase.rpc('respond_proposal', { p_token: token, p_date: date ?? null, p_time: time ?? null });
+  if (error) {
+    const code = Object.keys(PROPOSAL_ERRORS).find(key => error.message.includes(key));
+    return { error: code ? PROPOSAL_ERRORS[code] : 'Não foi possível confirmar agora. Tente de novo em instantes.' };
+  }
+  return { status: (data as { status: string }).status };
 }
