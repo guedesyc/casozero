@@ -89,12 +89,14 @@ create table if not exists public.triage_requests (
   requested_time  time not null,
   scheduled_date  date,
   scheduled_time  time,
-  status          text not null default 'pending' check (status in ('pending','confirmed','declined','continued','not_continued')),
+  status          text not null default 'pending' check (status in ('pending','awaiting_payment','confirmed','declined','continued','not_continued')),
   decline_reason  text check (decline_reason is null or char_length(decline_reason) <= 1000),
   outcome_note    text check (outcome_note is null or char_length(outcome_note) <= 5000),
   patient_id      uuid,
   consent_at      timestamptz,
   track_token     text unique,
+  payment_reported_at timestamptz,
+  paid_at         timestamptz,
   created_at      timestamptz not null default now(),
   unique (professional_id, id)
 );
@@ -368,6 +370,7 @@ returns jsonb language sql stable security definer set search_path = '' as $$
     'requestedTime', to_char(r.requested_time, 'HH24:MI'),
     'scheduledDate', r.scheduled_date,
     'scheduledTime', to_char(r.scheduled_time, 'HH24:MI'),
+    'paymentReportedAt', r.payment_reported_at,
     'professional', p.name,
     'slug', p.slug,
     'pixKey', nullif(p.settings -> 'account' ->> 'pixKey', ''),
@@ -380,11 +383,23 @@ returns jsonb language sql stable security definer set search_path = '' as $$
 $$;
 
 revoke all on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
-  public.ensure_tracking_token(uuid), public.get_request_by_token(text) from public, anon, authenticated;
+  public.ensure_tracking_token(uuid), public.get_request_by_token(text), public.report_payment(text) from public, anon, authenticated;
 grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
 grant execute on function public.ensure_tracking_token(uuid) to authenticated;
 grant execute on function public.get_request_by_token(text) to anon, authenticated;
+grant execute on function public.report_payment(text) to anon, authenticated;
 
+
+-- Paciente marca "já paguei" pelo link. Só altera a data do aviso, nada mais.
+create or replace function public.report_payment(p_token text)
+returns boolean language sql security definer set search_path = '' as $$
+  with u as (
+    update public.triage_requests set payment_reported_at = coalesce(payment_reported_at, now())
+     where track_token = p_token and char_length(p_token) between 40 and 80 and status = 'awaiting_payment'
+    returning 1
+  )
+  select exists (select 1 from u);
+$$;
 
 -- Endereço livre para o link (para o cadastro e a troca em "Meu link").
 create or replace function public.slug_available(p_slug text)
@@ -396,13 +411,14 @@ $$;
 revoke all on function public.get_public_profile(text), public.get_busy_slots(text, date, date),
   public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
   public.slug_available(text), public.enforce_patient_limit(), public.is_reserved_slug(text), public.touch_updated_at(),
-  public.ensure_tracking_token(uuid), public.get_request_by_token(text) from public, anon, authenticated;
+  public.ensure_tracking_token(uuid), public.get_request_by_token(text), public.report_payment(text) from public, anon, authenticated;
 grant execute on function public.get_public_profile(text) to anon, authenticated;
 grant execute on function public.get_busy_slots(text, date, date) to anon, authenticated;
 grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
 grant execute on function public.slug_available(text) to authenticated;
 grant execute on function public.ensure_tracking_token(uuid) to authenticated;
 grant execute on function public.get_request_by_token(text) to anon, authenticated;
+grant execute on function public.report_payment(text) to anon, authenticated;
 grant execute on function public.is_reserved_slug(text) to anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------

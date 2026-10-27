@@ -247,10 +247,21 @@ export function confirmRequest(data: ClinicData, id: string, date: string, time:
   const conflict = findConflict(data.professional, data.appointments, date, time, minutes, a => a.requestId === id && a.kind === 'triage');
   if (conflict) return { error: `${conflict} Escolha outro horário para a triagem.` };
   data.appointments = data.appointments.filter(a => !(a.requestId === id && a.kind === 'triage'));
-  request.status = 'confirmed';
+  // Com chave PIX configurada, a vaga só é firmada depois do sinal.
+  request.status = data.account.pixKey ? 'awaiting_payment' : 'confirmed';
   request.scheduledDate = date;
   request.scheduledTime = time;
   data.appointments.push({ id: uid(), kind: 'triage', date, time, minutes, status: 'scheduled', requestId: id, title: request.name });
+  return {};
+}
+
+/** A profissional confirma que o sinal caiu na conta. */
+export function confirmPayment(data: ClinicData, id: string): Outcome {
+  const request = data.requests.find(r => r.id === id);
+  if (!request) return { error: 'Solicitação não encontrada.' };
+  if (request.status !== 'awaiting_payment') return { error: 'Esta solicitação não está aguardando pagamento.' };
+  request.status = 'confirmed';
+  request.paidAt = new Date().toISOString();
   return {};
 }
 

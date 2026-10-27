@@ -63,12 +63,12 @@ function fromProfessionalRow(row: Row): { professional: Professional; account: A
 
 const requestRow = (r: TriageRequest, ownerId: string): Row => ({
   id: r.id, professional_id: ownerId, name: r.name, age: ageNumber(r.age), phone: r.phone, guardian_name: r.guardianName || null,
-  category: r.category || 'Outro assunto', service: r.service ?? null, concern: r.concern ?? '', expectation: r.expectation ?? '', modality: r.modality ?? null,
+  category: r.category || 'Outro assunto', service: r.service ?? null, payment_reported_at: r.paymentReportedAt ?? null, paid_at: r.paidAt ?? null, concern: r.concern ?? '', expectation: r.expectation ?? '', modality: r.modality ?? null,
   requested_date: r.requestedDate, requested_time: r.requestedTime, scheduled_date: r.scheduledDate ?? null, scheduled_time: r.scheduledTime ?? null,
   status: r.status, decline_reason: r.declineReason ?? null, outcome_note: r.outcomeNote ?? null, patient_id: r.patientId ?? null,
 });
 const fromRequestRow = (row: Row): TriageRequest => ({
-  id: row.id as string, trackToken: (row.track_token as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, guardianName: (row.guardian_name as string) ?? undefined,
+  id: row.id as string, trackToken: (row.track_token as string) ?? undefined, paymentReportedAt: (row.payment_reported_at as string) ?? undefined, paidAt: (row.paid_at as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, guardianName: (row.guardian_name as string) ?? undefined,
   category: row.category as string, service: (row.service as string) ?? undefined, concern: (row.concern as string) ?? '', expectation: (row.expectation as string) ?? '', modality: (row.modality as TriageRequest['modality']) ?? undefined,
   requestedDate: row.requested_date as string, requestedTime: hhmm(row.requested_time as string)!, scheduledDate: (row.scheduled_date as string) ?? undefined, scheduledTime: hhmm(row.scheduled_time as string),
   status: row.status as TriageRequest['status'], createdAt: row.created_at as string, declineReason: (row.decline_reason as string) ?? undefined,
@@ -286,7 +286,7 @@ export async function ensureTrackingToken(requestId: string): Promise<string | u
 
 /** Dados que o paciente vê no link de acompanhamento. */
 export interface TrackedRequest {
-  status: RequestStatus; name: string; service?: string; category: string;
+  status: RequestStatus; name: string; service?: string; category: string; paymentReportedAt?: string;
   requestedDate: string; requestedTime: string; scheduledDate?: string; scheduledTime?: string;
   professional: string; slug: string; pixKey?: string; pixHolder?: string; signalAmount?: string; contactPhone?: string;
 }
@@ -295,4 +295,11 @@ export async function fetchByTrackingToken(token: string): Promise<TrackedReques
   if (!supabase) return null;
   const { data, error } = await supabase.rpc('get_request_by_token', { p_token: token });
   return error || !data ? null : (data as TrackedRequest);
+}
+
+/** Paciente marcou "já paguei" pelo link. */
+export async function reportPayment(token: string): Promise<boolean> {
+  if (!supabase) return false;
+  const { data, error } = await supabase.rpc('report_payment', { p_token: token });
+  return !error && data === true;
 }

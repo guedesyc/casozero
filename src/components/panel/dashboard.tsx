@@ -43,7 +43,7 @@ export function Dashboard({ data, update }: { data: ClinicData; update: Update }
   const upcomingTriages = data.appointments.filter(a => a.kind === 'triage' && a.status === 'scheduled' && a.date >= d && a.date <= addDays(d, 7));
   const unrecorded = data.appointments.filter(a => a.kind === 'session' && a.status === 'scheduled' && a.date < d).sort((a, b) => b.date.localeCompare(a.date));
   // Triagens confirmadas cujo horário já passou e que ainda não tiveram o resultado registrado.
-  const triagesWithoutOutcome = data.requests.filter(r => r.status === 'confirmed' && r.scheduledDate && r.scheduledTime && isPast(r.scheduledDate, r.scheduledTime));
+  const triagesWithoutOutcome = data.requests.filter(r => (r.status === 'confirmed' || r.status === 'awaiting_payment') && r.scheduledDate && r.scheduledTime && isPast(r.scheduledDate, r.scheduledTime));
   const active = data.patients.filter(p => p.status === 'active').length;
   return <section className="page">
     <PageTitle eyebrow={formatLong(d)} title={<Greeting name={data.professional.name} />} text="Aqui está o que precisa da sua atenção." />

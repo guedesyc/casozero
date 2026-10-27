@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { CalendarCheck, CalendarClock, ChevronRight, ClipboardCheck, MessageCircle, X } from 'lucide-react';
+import { CalendarCheck, CalendarClock, Check, ChevronRight, ClipboardCheck, MessageCircle, X } from 'lucide-react';
 import { addDays, formatDayMonth, formatLong, formatStamp, WEEKDAYS, weekdayOf } from '@/lib/dates';
-import { ClinicData, completeTriage, confirmRequest, declineRequest, flushClinic, useClinic } from '@/services/clinic';
+import { ClinicData, completeTriage, confirmPayment, confirmRequest, declineRequest, flushClinic, useClinic } from '@/services/clinic';
 import { ensureTrackingToken } from '@/services/remote';
 import { formatMoney } from '@/config/plans';
 import { availableDates, freeSlots, isPast } from '@/services/scheduling';
@@ -14,7 +14,7 @@ import { Badge, Block, FormError, initials, PageTitle, REQUEST_LABELS } from './
 type Update = ReturnType<typeof useClinic>['update'];
 const TABS: { key: string; label: string; match: RequestStatus[] }[] = [
   { key: 'pending', label: 'Aguardando você', match: ['pending'] },
-  { key: 'confirmed', label: 'Triagens marcadas', match: ['confirmed'] },
+  { key: 'confirmed', label: 'Triagens marcadas', match: ['awaiting_payment', 'confirmed'] },
   { key: 'closed', label: 'Encerradas', match: ['continued', 'not_continued', 'declined'] },
 ];
 
@@ -53,7 +53,7 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
   const proFirst = data.professional.name.split(' ')[0];
   const date = request.scheduledDate ?? request.requestedDate;
   const time = request.scheduledTime ?? request.requestedTime;
-  const triageHappened = request.status === 'confirmed' && isPast(date, time);
+  const triageHappened = (request.status === 'confirmed' || request.status === 'awaiting_payment') && isPast(date, time);
   // Mensagem de confirmação: reserva, sinal por PIX (configurado na Conta) e link de acompanhamento.
   const confirmMessage = (trackingLink?: string) => {
     const { pixKey, pixHolder, signalAmount } = data.account;
@@ -93,7 +93,14 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
             <button className="secondary full" onClick={() => { setError(''); setMode('reschedule'); }}><CalendarClock size={16} /> Marcar em outro horário</button>
             <button className="ghost-danger full" onClick={() => setMode('decline')}>Recusar pedido</button>
           </div>}
-          {request.status === 'confirmed' && <div className="stack-buttons">
+          {(request.status === 'awaiting_payment' || request.status === 'confirmed') && <div className="stack-buttons">
+            {request.status === 'awaiting_payment' && <div className="payment-box">
+              <p><b>Aguardando o sinal por PIX.</b></p>
+              {request.paymentReportedAt
+                ? <p className="muted">O paciente informou o pagamento em {formatStamp(request.paymentReportedAt)}. Confira na sua conta e confirme.</p>
+                : <p className="muted">O paciente ainda não informou o pagamento.</p>}
+              <button className="primary full" onClick={() => setError(update(d => confirmPayment(d, request.id)).error ?? '')}><Check size={16} /> Confirmar pagamento</button>
+            </div>}
             <button className="secondary full" onClick={() => sendWhatsapp(request)} disabled={sendingWhatsapp}><MessageCircle size={16} /> {sendingWhatsapp ? 'Preparando…' : 'Avisar pelo WhatsApp'}</button>
             {triageHappened ? <button className="primary full" onClick={() => setMode('outcome')}><ClipboardCheck size={16} /> Registrar resultado da triagem</button>
               : <><button className="secondary full" onClick={() => { setError(''); setMode('reschedule'); }}><CalendarClock size={16} /> Remarcar</button><button className="primary full" onClick={() => setMode('outcome')}><ClipboardCheck size={16} /> Registrar resultado</button></>}

@@ -30,7 +30,7 @@ const NAV: { group: string; items: { label: string; href: string; icon: typeof I
   ] },
 ];
 
-export const REQUEST_LABELS: Record<RequestStatus, string> = { pending: 'Aguardando você', confirmed: 'Triagem marcada', declined: 'Recusada', continued: 'Em acompanhamento', not_continued: 'Não seguiu' };
+export const REQUEST_LABELS: Record<RequestStatus, string> = { pending: 'Aguardando você', awaiting_payment: 'Aguardando pagamento', confirmed: 'Triagem marcada', declined: 'Recusada', continued: 'Em acompanhamento', not_continued: 'Não seguiu' };
 export const PATIENT_LABELS: Record<PatientStatus, string> = { active: 'Em acompanhamento', paused: 'Pausado', discharged: 'Alta' };
 export const APPOINTMENT_LABELS: Record<AppointmentStatus, string> = { scheduled: 'Marcada', done: 'Realizada', missed: 'Falta', canceled: 'Cancelada' };
 

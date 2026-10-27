@@ -230,3 +230,11 @@
 .track-pix p{margin:6px 0;font-size:14px}
 .track-pix code{display:block;word-break:break-all;background:#fff;border-radius:6px;padding:8px 10px;margin:8px 0;font-size:13px}
 .track-contact{margin:14px 0 4px;width:100%}
+
+/* ---------- Aguardando pagamento ---------- */
+.badge-awaiting_payment{background:#f6ead0;color:#7a5a12}
+.payment-box{border:1px solid #ecd9a6;background:#fdf8ea;border-radius:10px;padding:12px 14px;margin-bottom:6px}
+.payment-box p{margin:0 0 6px;font-size:13px}
+.payment-box .primary{margin-top:8px}
+.paid-note{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#2b6739;margin:10px 0 0}
+.paid-button{margin-top:10px;width:100%}

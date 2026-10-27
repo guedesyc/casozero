@@ -64,7 +64,8 @@ export interface AccountSettings {
 
 export type RequestStatus =
   | 'pending'      // paciente pediu, aguardando a profissional
-  | 'confirmed'    // triagem marcada
+  | 'awaiting_payment' // horário confirmado; aguarda o sinal por PIX
+  | 'confirmed'    // triagem marcada e sinal confirmado
   | 'declined'     // profissional recusou o pedido
   | 'continued'    // triagem feita, segue em acompanhamento
   | 'not_continued'; // triagem feita, não segue
@@ -77,6 +78,9 @@ export interface TriageRequest {
   phone: string;
   guardianName?: string;
   category: string;
+  /** Quando o paciente marcou "já paguei" pelo link, e quando a profissional confirmou o sinal. */
+  paymentReportedAt?: string;
+  paidAt?: string;
   /** Código do link de acompanhamento (/r/<código>). Só o profissional e o paciente têm. */
   trackToken?: string;
   /** Serviço escolhido pelo paciente (nome do serviço cadastrado pela profissional). */
