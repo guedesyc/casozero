@@ -51,7 +51,9 @@ export async function POST(request: Request) {
   // Sem assinatura paga, o Grátis não passa pela Stripe.
   if (plan === 'gratis') return NextResponse.json({ free: true });
 
-  const origin = request.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  // A volta do checkout só vai para o próprio site, nunca para uma origem informada por quem chama.
+  const sent = request.headers.get('origin') ?? '';
+  const origin = /^https:\/\/(www\.)?casozero\.com\.br$|^http:\/\/localhost:\d+$/.test(sent) ? sent : process.env.NEXT_PUBLIC_APP_URL ?? 'https://casozero.com.br';
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     line_items: [{ price, quantity }],
