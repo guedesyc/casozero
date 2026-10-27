@@ -25,7 +25,7 @@ export function RequestsList({ data }: { data: ClinicData }) {
     <div className="tabs">{TABS.map(t => <button key={t.key} className={t.key === tab ? 'active' : ''} onClick={() => setTab(t.key)}>{t.label} <b>{data.requests.filter(r => t.match.includes(r.status)).length}</b></button>)}</div>
     <div className="list">{items.length ? items.map(r => <Link key={r.id} href={`/app/solicitacoes/detalhe/?id=${r.id}`} className="list-row">
       <span className="initials">{initials(r.name)}</span>
-      <span className="list-main"><strong>{r.name}</strong><small>{r.age} anos · {r.category}</small></span>
+      <span className="list-main"><strong>{r.name}</strong><small>{r.age} anos · {r.service ? `${r.service} · ` : ''}{r.category}</small></span>
       <span className="list-when"><CalendarClock size={14} /> {formatDayMonth(r.scheduledDate ?? r.requestedDate)}, {r.scheduledTime ?? r.requestedTime}</span>
       <Badge tone={r.status}>{REQUEST_LABELS[r.status]}</Badge>
       <ChevronRight size={16} />
@@ -56,7 +56,7 @@ export function RequestDetail({ id, data, update }: { id?: string; data: ClinicD
 
   return <section className="page detail">
     <Link href="/app/solicitacoes" className="back">← Solicitações</Link>
-    <PageTitle eyebrow={`Pedido recebido em ${formatStamp(request.createdAt)}`} title={request.name} text={<>{request.age} anos · {request.category}{request.modality && ` · prefere ${request.modality}`}</>}>
+    <PageTitle eyebrow={`Pedido recebido em ${formatStamp(request.createdAt)}`} title={request.name} text={<>{request.age} anos · {request.service ? `${request.service} · ` : ''}{request.category}{request.modality && ` · prefere ${request.modality}`}</>}>
       <Badge tone={request.status}>{REQUEST_LABELS[request.status]}</Badge>
     </PageTitle>
     <div className="detail-grid">

@@ -20,7 +20,8 @@ const STEPS: [Stage, string][] = [['need', 'O que procura'], ['about', 'Seus dad
 export default function Booking({ data, submit, topic }: { data: PublicData; submit: (input: NewRequest) => Outcome<TriageRequest> | Promise<Outcome<TriageRequest>>; topic?: string }) {
   const professional = data.professional;
   const [stage, setStage] = useState<Stage>('need');
-  const [need, setNeed] = useState({ category: professional.categories.find(c => slugifyTopic(c) === topic) ?? '', concern: '', expectation: '', modality: '' as '' | 'online' | 'presencial' });
+  const [need, setNeed] = useState({ category: professional.categories.find(c => slugifyTopic(c) === topic) ?? '', service: '', concern: '', expectation: '', modality: '' as '' | 'online' | 'presencial' });
+  const services = professional.services.map(s => s.name.trim()).filter(Boolean);
   const [about, setAbout] = useState({ name: '', age: '', phone: '', guardianName: '' });
   const [slot, setSlot] = useState<Slot>();
   const [consent, setConsent] = useState(false);
@@ -44,7 +45,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
     setSending(true);
     const result = await submit({
       name: about.name.trim(), age: about.age, phone: about.phone, guardianName: minor ? about.guardianName.trim() : undefined,
-      category: need.category || 'Outro assunto', concern: need.concern.trim(), expectation: need.expectation.trim(),
+      category: need.category || 'Outro assunto', service: need.service || undefined, concern: need.concern.trim(), expectation: need.expectation.trim(),
       modality: professional.modality === 'ambos' ? need.modality || undefined : professional.modality,
       requestedDate: slot.date, requestedTime: slot.time,
     });
@@ -65,6 +66,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
     {stage === 'need' && <>
       <h1>{professional.bookingTitle || 'O que você procura?'}</h1>
       {professional.bookingIntro && <p className="lead">{professional.bookingIntro}</p>}
+      {services.length > 0 && <div className="field"><span>Serviço <small>Opcional</small></span><div className="chips">{services.map(name => <button type="button" key={name} className={need.service === name ? 'chip on' : 'chip'} onClick={() => setNeed({ ...need, service: need.service === name ? '' : name })}>{name}</button>)}</div></div>}
       <div className="field"><span>Escolha o assunto mais próximo</span><div className="chips">{professional.categories.map(c => <button type="button" key={c} className={need.category === c ? 'chip on' : 'chip'} onClick={() => setNeed({ ...need, category: need.category === c ? '' : c })}>{c}</button>)}</div></div>
       <label className="field"><span>Conte com suas palavras o que você gostaria de tratar</span><textarea rows={4} value={need.concern} onChange={e => setNeed({ ...need, concern: e.target.value })} placeholder={`Ex.: ${examples.concern}`} /></label>
       <label className="field"><span>O que você imagina ou espera desse acompanhamento? <small>Opcional</small></span><textarea rows={3} value={need.expectation} onChange={e => setNeed({ ...need, expectation: e.target.value })} placeholder={`Ex.: ${examples.expectation}`} /></label>
@@ -94,6 +96,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
     {stage === 'review' && <>
       <h1>Confira antes de enviar.</h1>
       <dl className="review-list">
+        {need.service && <Row label="Serviço" value={need.service} edit={() => go('need')} />}
         <Row label="Assunto" value={need.category || 'Não escolhido'} edit={() => go('need')} />
         <Row label="O que deseja tratar" value={need.concern || 'Não informado'} edit={() => go('need')} />
         {need.expectation && <Row label="O que espera" value={need.expectation} edit={() => go('need')} />}

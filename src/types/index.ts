@@ -73,6 +73,8 @@ export interface TriageRequest {
   phone: string;
   guardianName?: string;
   category: string;
+  /** Serviço escolhido pelo paciente (nome do serviço cadastrado pela profissional). */
+  service?: string;
   /** O que a pessoa procura tratar. */
   concern: string;
   /** O que ela imagina / espera do acompanhamento. */

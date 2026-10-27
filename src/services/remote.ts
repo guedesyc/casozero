@@ -62,13 +62,13 @@ function fromProfessionalRow(row: Row): { professional: Professional; account: A
 
 const requestRow = (r: TriageRequest, ownerId: string): Row => ({
   id: r.id, professional_id: ownerId, name: r.name, age: ageNumber(r.age), phone: r.phone, guardian_name: r.guardianName || null,
-  category: r.category || 'Outro assunto', concern: r.concern ?? '', expectation: r.expectation ?? '', modality: r.modality ?? null,
+  category: r.category || 'Outro assunto', service: r.service ?? null, concern: r.concern ?? '', expectation: r.expectation ?? '', modality: r.modality ?? null,
   requested_date: r.requestedDate, requested_time: r.requestedTime, scheduled_date: r.scheduledDate ?? null, scheduled_time: r.scheduledTime ?? null,
   status: r.status, decline_reason: r.declineReason ?? null, outcome_note: r.outcomeNote ?? null, patient_id: r.patientId ?? null,
 });
 const fromRequestRow = (row: Row): TriageRequest => ({
   id: row.id as string, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, guardianName: (row.guardian_name as string) ?? undefined,
-  category: row.category as string, concern: (row.concern as string) ?? '', expectation: (row.expectation as string) ?? '', modality: (row.modality as TriageRequest['modality']) ?? undefined,
+  category: row.category as string, service: (row.service as string) ?? undefined, concern: (row.concern as string) ?? '', expectation: (row.expectation as string) ?? '', modality: (row.modality as TriageRequest['modality']) ?? undefined,
   requestedDate: row.requested_date as string, requestedTime: hhmm(row.requested_time as string)!, scheduledDate: (row.scheduled_date as string) ?? undefined, scheduledTime: hhmm(row.scheduled_time as string),
   status: row.status as TriageRequest['status'], createdAt: row.created_at as string, declineReason: (row.decline_reason as string) ?? undefined,
   outcomeNote: (row.outcome_note as string) ?? undefined, patientId: (row.patient_id as string) ?? undefined,
@@ -265,7 +265,7 @@ const SUBMIT_ERRORS: Record<string, string> = {
 export async function submitPublicRequest(slug: string, input: NewRequest): Promise<Outcome<TriageRequest>> {
   const { data, error } = await db().rpc('submit_triage_request', {
     p_slug: slug, p_name: input.name, p_age: ageNumber(input.age), p_phone: input.phone, p_guardian_name: input.guardianName ?? null,
-    p_category: input.category, p_concern: input.concern, p_expectation: input.expectation, p_modality: input.modality ?? null,
+    p_category: input.category, p_service: input.service ?? null, p_concern: input.concern, p_expectation: input.expectation, p_modality: input.modality ?? null,
     p_date: input.requestedDate, p_time: input.requestedTime,
   });
   if (error) {

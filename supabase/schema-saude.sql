@@ -81,6 +81,7 @@ create table if not exists public.triage_requests (
   phone           text not null check (char_length(regexp_replace(phone, '\D', '', 'g')) between 10 and 13),
   guardian_name   text check (guardian_name is null or char_length(guardian_name) <= 120),
   category        text not null check (char_length(category) between 1 and 80),
+  service         text check (service is null or char_length(service) <= 120),
   concern         text not null default '' check (char_length(concern) <= 2000),
   expectation     text not null default '' check (char_length(expectation) <= 2000),
   modality        text check (modality in ('online','presencial')),
@@ -270,9 +271,10 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Pedido de triagem com todas as validações no servidor.
+drop function if exists public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time);
 create or replace function public.submit_triage_request(
   p_slug text, p_name text, p_age int, p_phone text, p_guardian_name text, p_category text,
-  p_concern text, p_expectation text, p_modality text, p_date date, p_time time
+  p_concern text, p_expectation text, p_modality text, p_date date, p_time time, p_service text default null
 ) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   pro public.professionals%rowtype;
@@ -334,8 +336,9 @@ begin
     raise exception 'MUITOS_PEDIDOS' using errcode = 'P0001';
   end if;
 
-  insert into public.triage_requests (professional_id, name, age, phone, guardian_name, category, concern, expectation, modality, requested_date, requested_time, consent_at)
+  insert into public.triage_requests (professional_id, name, age, phone, guardian_name, category, service, concern, expectation, modality, requested_date, requested_time, consent_at)
   values (pro.id, trim(p_name), p_age, trim(p_phone), nullif(trim(coalesce(p_guardian_name, '')), ''), left(coalesce(nullif(trim(p_category), ''), 'Outro assunto'), 80),
+          nullif(left(trim(coalesce(p_service, '')), 120), ''),
           left(coalesce(p_concern, ''), 2000), left(coalesce(p_expectation, ''), 2000),
           case when p_modality in ('online','presencial') then p_modality end, p_date, p_time, now())
   returning id into new_id;
@@ -350,11 +353,11 @@ returns boolean language sql stable security definer set search_path = '' as $$
 $$;
 
 revoke all on function public.get_public_profile(text), public.get_busy_slots(text, date, date),
-  public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time),
+  public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
   public.slug_available(text), public.enforce_patient_limit(), public.is_reserved_slug(text), public.touch_updated_at() from public, anon, authenticated;
 grant execute on function public.get_public_profile(text) to anon, authenticated;
 grant execute on function public.get_busy_slots(text, date, date) to anon, authenticated;
-grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time) to anon, authenticated;
+grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
 grant execute on function public.slug_available(text) to authenticated;
 grant execute on function public.is_reserved_slug(text) to anon, authenticated, service_role;
 
