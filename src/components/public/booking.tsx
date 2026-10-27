@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { AlertCircle, ArrowLeft, ArrowRight, CalendarCheck, Check } from 'lucide-react';
 import { formatLong } from '@/lib/dates';
 import { PROFESSIONS } from '@/config/professions';
-import { NewRequest, Outcome, slugifyTopic } from '@/services/clinic';
+import { isEmail, NewRequest, Outcome, slugifyTopic } from '@/services/clinic';
 import { availableDates, freeSlots } from '@/services/scheduling';
 import { Slot, SlotPicker } from '@/components/ui/slot-picker';
 import { TriageRequest } from '@/types';
@@ -22,7 +22,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
   const [stage, setStage] = useState<Stage>('need');
   const [need, setNeed] = useState({ category: professional.categories.find(c => slugifyTopic(c) === topic) ?? '', service: '', concern: '', expectation: '', modality: '' as '' | 'online' | 'presencial' });
   const services = professional.services.map(s => s.name.trim()).filter(Boolean);
-  const [about, setAbout] = useState({ name: '', age: '', phone: '', guardianName: '' });
+  const [about, setAbout] = useState({ name: '', age: '', phone: '', email: '', guardianName: '' });
   const [slot, setSlot] = useState<Slot>();
   const [consent, setConsent] = useState(false);
   const [sent, setSent] = useState<TriageRequest>();
@@ -35,6 +35,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
     ...(!about.name.trim() ? [['about', 'seu nome'] as [Stage, string]] : []),
     ...(about.phone.replace(/\D/g, '').length < 10 ? [['about', 'um telefone com DDD'] as [Stage, string]] : []),
     ...(minor && !about.guardianName.trim() ? [['about', 'o nome do responsável'] as [Stage, string]] : []),
+    ...(about.email.trim() && !isEmail(about.email.trim()) ? [['about', 'um e-mail válido (ou deixe em branco)'] as [Stage, string]] : []),
     ...(!slot ? [['slot', 'o horário da triagem'] as [Stage, string]] : []),
   ];
   const first = professional.name.split(' ')[0];
@@ -44,7 +45,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
     if (!slot || !consent || missing.length || sending) return;
     setSending(true);
     const result = await submit({
-      name: about.name.trim(), age: about.age, phone: about.phone, guardianName: minor ? about.guardianName.trim() : undefined,
+      name: about.name.trim(), age: about.age, phone: about.phone, email: about.email.trim().toLowerCase() || undefined, guardianName: minor ? about.guardianName.trim() : undefined,
       category: need.category || 'Outro assunto', service: need.service || undefined, concern: need.concern.trim(), expectation: need.expectation.trim(),
       modality: professional.modality === 'ambos' ? need.modality || undefined : professional.modality,
       requestedDate: slot.date, requestedTime: slot.time,
@@ -82,6 +83,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
         <label className="field"><span>Idade</span><input type="number" min={1} max={120} value={about.age} onChange={e => setAbout({ ...about, age: e.target.value })} /></label>
         <label className="field"><span>Telefone (WhatsApp)</span><input type="tel" value={about.phone} onChange={e => setAbout({ ...about, phone: e.target.value })} placeholder="(00) 00000-0000" /></label>
       </div>
+      <label className="field"><span>E-mail <small>Opcional · para receber um lembrete 1h antes</small></span><input type="email" autoComplete="email" value={about.email} onChange={e => setAbout({ ...about, email: e.target.value })} placeholder="voce@email.com" /></label>
       {minor && <label className="field"><span>Nome do responsável <small>Para menores de 18 anos</small></span><input value={about.guardianName} onChange={e => setAbout({ ...about, guardianName: e.target.value })} /></label>}
       <div className="button-row"><button className="secondary" onClick={() => go('need')}><ArrowLeft size={16} /> Voltar</button><button className="primary" onClick={() => go('slot')}>Escolher horário <ArrowRight size={18} /></button></div>
     </>}
@@ -102,6 +104,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
         {need.expectation && <Row label="O que espera" value={need.expectation} edit={() => go('need')} />}
         <Row label="Nome" value={about.name ? `${about.name}${about.age ? ` · ${about.age} anos` : ''}${minor && about.guardianName ? ` · responsável: ${about.guardianName}` : ''}` : '—'} edit={() => go('about')} />
         <Row label="Telefone" value={about.phone || '—'} edit={() => go('about')} />
+        {about.email.trim() && <Row label="E-mail" value={about.email.trim()} edit={() => go('about')} />}
         <Row label="Triagem" value={slot ? `${formatLong(slot.date)}, às ${slot.time}${need.modality ? ` · ${need.modality}` : ''}` : '—'} edit={() => go('slot')} />
       </dl>
       {missing.length > 0 && <div className="form-error"><AlertCircle size={15} /><span>Para enviar, falta informar {missing.map(([step, label], i) => <span key={label}>{i > 0 && (i === missing.length - 1 ? ' e ' : ', ')}<button type="button" onClick={() => go(step)}>{label}</button></span>)}.</span></div>}

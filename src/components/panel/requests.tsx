@@ -100,7 +100,7 @@ ${link}` : ''}`,
       <div className="stack">
         <Block title="O que procura tratar"><p className="quote">{request.concern}</p></Block>
         {request.expectation && <Block title="O que imagina do acompanhamento"><p className="quote">{request.expectation}</p></Block>}
-        <Block title="Contato"><dl className="facts"><div><dt>Telefone</dt><dd>{request.phone}</dd></div>{request.guardianName && <div><dt>Responsável</dt><dd>{request.guardianName}</dd></div>}</dl></Block>
+        <Block title="Contato"><dl className="facts"><div><dt>Telefone</dt><dd>{request.phone}</dd></div>{request.email && <div><dt>E-mail</dt><dd>{request.email}</dd></div>}{request.guardianName && <div><dt>Responsável</dt><dd>{request.guardianName}</dd></div>}</dl></Block>
         {request.declineReason && <Block title="Motivo da recusa"><p>{request.declineReason}</p></Block>}
         {request.outcomeNote && <Block title="Resultado da triagem"><p>{request.outcomeNote}</p></Block>}
       </div>

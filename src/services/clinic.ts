@@ -308,7 +308,7 @@ export function completeTriage(data: ClinicData, id: string, outcome: TriageOutc
     return {};
   }
   const patient: Patient = {
-    id: uid(), requestId: id, name: request.name, age: request.age, phone: request.phone, guardianName: request.guardianName,
+    id: uid(), requestId: id, name: request.name, age: request.age, phone: request.phone, email: request.email, guardianName: request.guardianName,
     category: request.category, concern: request.concern, expectation: request.expectation,
     status: 'active', recurrence: outcome.recurrence, createdAt: new Date().toISOString(),
   };
@@ -372,6 +372,17 @@ export function changeRecurrence(data: ClinicData, patientId: string, recurrence
   removeFutureSessions(data, patientId, today() > recurrence.startDate ? today() : recurrence.startDate);
   patient.recurrence = recurrence;
   scheduleRecurring(data, patient, recurrence.startDate > today() ? recurrence.startDate : today());
+  return {};
+}
+
+/** E-mail do paciente para os lembretes (vazio remove). */
+export const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
+export function setPatientEmail(data: ClinicData, patientId: string, email: string): Outcome {
+  const patient = data.patients.find(p => p.id === patientId);
+  if (!patient) return { error: 'Paciente não encontrado.' };
+  const value = email.trim().toLowerCase();
+  if (value && !isEmail(value)) return { error: 'Confira o e-mail: use o formato nome@exemplo.com.' };
+  patient.email = value || undefined;
   return {};
 }
 

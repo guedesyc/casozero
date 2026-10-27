@@ -79,6 +79,7 @@ create table if not exists public.triage_requests (
   name            text not null check (char_length(name) between 2 and 120),
   age             smallint check (age between 0 and 120),
   phone           text not null check (char_length(regexp_replace(phone, '\D', '', 'g')) between 10 and 13),
+  email           text check (email is null or (char_length(email) <= 254 and email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$')),
   guardian_name   text check (guardian_name is null or char_length(guardian_name) <= 120),
   category        text not null check (char_length(category) between 1 and 80),
   service         text check (service is null or char_length(service) <= 120),
@@ -112,6 +113,7 @@ create table if not exists public.patients (
   name            text not null check (char_length(name) between 2 and 120),
   age             smallint check (age between 0 and 120),
   phone           text not null check (char_length(phone) <= 30),
+  email           text check (email is null or (char_length(email) <= 254 and email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$')),
   guardian_name   text check (guardian_name is null or char_length(guardian_name) <= 120),
   category        text not null default '' check (char_length(category) <= 80),
   concern         text not null default '' check (char_length(concern) <= 2000),
@@ -135,6 +137,7 @@ create table if not exists public.appointments (
   request_id      uuid,
   patient_id      uuid,
   title           text not null default '' check (char_length(title) <= 120),
+  reminded_at     timestamptz,
   starts_at       timestamp generated always as (date + time) stored,
   ends_at         timestamp generated always as (date + time + minutes * interval '1 minute') stored,
   unique (professional_id, id),
@@ -280,7 +283,8 @@ $$;
 drop function if exists public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text);
 create or replace function public.submit_triage_request(
   p_slug text, p_name text, p_age int, p_phone text, p_guardian_name text, p_category text,
-  p_concern text, p_expectation text, p_modality text, p_date date, p_time time, p_service text default null
+  p_concern text, p_expectation text, p_modality text, p_date date, p_time time, p_service text default null,
+  p_email text default null
 ) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   pro public.professionals%rowtype;
@@ -290,6 +294,7 @@ declare
   slot_start timestamp := p_date + p_time;
   slot_end timestamp;
   digits text := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
+  mail text := nullif(lower(trim(coalesce(p_email, ''))), '');
   new_id uuid;
   new_token text := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
 begin
@@ -303,6 +308,7 @@ begin
   if char_length(trim(coalesce(p_name, ''))) < 2 then raise exception 'NOME_INVALIDO' using errcode = 'P0001'; end if;
   if char_length(digits) not between 10 and 13 then raise exception 'TELEFONE_INVALIDO' using errcode = 'P0001'; end if;
   if p_age is not null and p_age < 18 and char_length(trim(coalesce(p_guardian_name, ''))) < 2 then raise exception 'RESPONSAVEL_OBRIGATORIO' using errcode = 'P0001'; end if;
+  if mail is not null and (char_length(mail) > 254 or mail !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') then raise exception 'EMAIL_INVALIDO' using errcode = 'P0001'; end if;
 
   if slot_start < local_now + coalesce((pro.availability ->> 'minNoticeHours')::int, 12) * interval '1 hour'
      or p_date > local_now::date + coalesce((pro.availability ->> 'horizonDays')::int, 30) then
@@ -337,8 +343,8 @@ begin
     raise exception 'MUITOS_PEDIDOS' using errcode = 'P0001';
   end if;
 
-  insert into public.triage_requests (professional_id, name, age, phone, guardian_name, category, service, concern, expectation, modality, requested_date, requested_time, consent_at, track_token)
-  values (pro.id, trim(p_name), p_age, trim(p_phone), nullif(trim(coalesce(p_guardian_name, '')), ''), left(coalesce(nullif(trim(p_category), ''), 'Outro assunto'), 80),
+  insert into public.triage_requests (professional_id, name, age, phone, email, guardian_name, category, service, concern, expectation, modality, requested_date, requested_time, consent_at, track_token)
+  values (pro.id, trim(p_name), p_age, trim(p_phone), mail, nullif(trim(coalesce(p_guardian_name, '')), ''), left(coalesce(nullif(trim(p_category), ''), 'Outro assunto'), 80),
           nullif(left(trim(coalesce(p_service, '')), 120), ''),
           left(coalesce(p_concern, ''), 2000), left(coalesce(p_expectation, ''), 2000),
           case when p_modality in ('online','presencial') then p_modality end, p_date, p_time, now(), new_token)
@@ -387,9 +393,9 @@ returns jsonb language sql stable security definer set search_path = '' as $$
   where r.track_token = p_token and char_length(p_token) between 40 and 80;
 $$;
 
-revoke all on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
+revoke all on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text, text),
   public.ensure_tracking_token(uuid), public.get_request_by_token(text), public.report_payment(text), public.respond_proposal(text, date, time) from public, anon, authenticated;
-grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
+grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text, text) to anon, authenticated;
 grant execute on function public.ensure_tracking_token(uuid) to authenticated;
 grant execute on function public.get_request_by_token(text) to anon, authenticated;
 grant execute on function public.report_payment(text) to anon, authenticated;
@@ -472,12 +478,12 @@ returns boolean language sql stable security definer set search_path = '' as $$
 $$;
 
 revoke all on function public.get_public_profile(text), public.get_busy_slots(text, date, date),
-  public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text),
+  public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text, text),
   public.slug_available(text), public.enforce_patient_limit(), public.is_reserved_slug(text), public.touch_updated_at(),
   public.ensure_tracking_token(uuid), public.get_request_by_token(text), public.report_payment(text), public.respond_proposal(text, date, time) from public, anon, authenticated;
 grant execute on function public.get_public_profile(text) to anon, authenticated;
 grant execute on function public.get_busy_slots(text, date, date) to anon, authenticated;
-grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text) to anon, authenticated;
+grant execute on function public.submit_triage_request(text, text, int, text, text, text, text, text, text, date, time, text, text) to anon, authenticated;
 grant execute on function public.slug_available(text) to authenticated;
 grant execute on function public.ensure_tracking_token(uuid) to authenticated;
 grant execute on function public.get_request_by_token(text) to anon, authenticated;
@@ -650,3 +656,61 @@ grant execute on function public.admin_overview() to authenticated;
 --     rota /api/notify/new-request não mandar o mesmo e-mail duas vezes.
 -- ---------------------------------------------------------------------
 alter table public.triage_requests add column if not exists notified_at timestamptz;
+
+-- ---------------------------------------------------------------------
+-- 13. Lembrete por e-mail ao paciente cerca de 1h antes do atendimento.
+--     O pg_cron chama /api/notify/reminders a cada 5 minutos; a rota usa
+--     claim_due_reminders (só service_role), que marca e devolve os
+--     atendimentos da próxima hora uma única vez.
+-- ---------------------------------------------------------------------
+alter table public.triage_requests add column if not exists email text check (email is null or (char_length(email) <= 254 and email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'));
+alter table public.patients add column if not exists email text check (email is null or (char_length(email) <= 254 and email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'));
+alter table public.appointments add column if not exists reminded_at timestamptz;
+
+create or replace function public.claim_due_reminders()
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare result jsonb;
+begin
+  with due as (
+    select a.id from public.appointments a
+      left join public.patients p on p.id = a.patient_id
+      left join public.triage_requests r on r.id = a.request_id
+     where a.status = 'scheduled' and a.reminded_at is null
+       and ((a.date + a.time) at time zone 'America/Sao_Paulo') > now()
+       and ((a.date + a.time) at time zone 'America/Sao_Paulo') <= now() + interval '65 minutes'
+       and ((a.kind = 'session' and p.status = 'active' and p.email is not null)
+         or (a.kind = 'triage' and r.status = 'confirmed' and coalesce(p.email, r.email) is not null))
+     for update of a skip locked
+  ), marked as (
+    update public.appointments a set reminded_at = now() from due where a.id = due.id
+    returning a.id, a.professional_id, a.kind, a.date, a.time, a.patient_id, a.request_id
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', m.id, 'kind', m.kind, 'date', m.date, 'time', to_char(m.time, 'HH24:MI'),
+    'email', coalesce(p.email, r.email),
+    'name', split_part(coalesce(p.name, r.name), ' ', 1),
+    'professional', pro.name, 'profession', pro.profession,
+    'phone', nullif(pro.phone, ''), 'trackToken', r.track_token
+  )), '[]'::jsonb) into result
+  from marked m
+  join public.professionals pro on pro.id = m.professional_id
+  left join public.patients p on p.id = m.patient_id
+  left join public.triage_requests r on r.id = m.request_id;
+  return result;
+end $$;
+
+-- Se o e-mail falhar, a rota devolve o atendimento para a próxima rodada.
+create or replace function public.release_reminder(p_id uuid)
+returns void language sql security definer set search_path = '' as $$
+  update public.appointments set reminded_at = null where id = p_id;
+$$;
+
+revoke all on function public.claim_due_reminders(), public.release_reminder(uuid) from public, anon, authenticated;
+grant execute on function public.claim_due_reminders(), public.release_reminder(uuid) to service_role;
+
+create extension if not exists pg_net;
+create extension if not exists pg_cron;
+select cron.unschedule('casozero-lembretes') where exists (select 1 from cron.job where jobname = 'casozero-lembretes');
+select cron.schedule('casozero-lembretes', '*/5 * * * *', $cron$
+  select net.http_post(url := 'https://casozero.com.br/api/notify/reminders', headers := '{"Content-Type": "application/json"}'::jsonb, body := '{}'::jsonb);
+$cron$);

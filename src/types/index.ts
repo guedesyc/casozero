@@ -77,6 +77,8 @@ export interface TriageRequest {
   name: string;
   age: string;
   phone: string;
+  /** Opcional; usado para o lembrete 1h antes do atendimento. */
+  email?: string;
   guardianName?: string;
   category: string;
   /** Quando o paciente marcou "já paguei" pelo link, e quando a profissional confirmou o sinal. */
@@ -118,6 +120,8 @@ export interface Patient {
   name: string;
   age: string;
   phone: string;
+  /** Opcional; usado para o lembrete 1h antes de cada sessão. */
+  email?: string;
   guardianName?: string;
   category: string;
   concern: string;

@@ -38,7 +38,8 @@ npm run dev
 5. **Resultado da triagem.** As anotações viram a página "Triagem" da caderneta. Se o atendimento continua, ela define o horário fixo (semanal ou quinzenal) e as sessões dos próximos 90 dias entram na agenda, renovadas sozinhas. Dias bloqueados ficam sem sessão.
 6. **Caderneta.** Uma página por sessão (Sessão 1, Sessão 15…), com anotações e uma linha de evolução.
 7. **Evolução.** Linha do tempo de todas as sessões, com busca e "Baixar PDF". Cada abertura, edição e PDF fica no registro de acesso, visto em "Triagem e dados".
-8. **Admin** (`/admin`). Painel da plataforma, só leitura, com código do Google Authenticator. Mostra o funil, as pendências e a tabela das profissionais.
+8. **Lembrete ao paciente.** Se o paciente informou o e-mail no pedido (opcional), ou se a profissional cadastrou o e-mail na ficha (Triagem e dados), ele recebe um e-mail cerca de 1h antes da triagem confirmada e de cada sessão marcada. O `pg_cron` do Supabase (job `casozero-lembretes`) chama `/api/notify/reminders` a cada 5 minutos. A função `claim_due_reminders` marca cada atendimento (`reminded_at`) para nunca repetir o envio. O e-mail não traz nada sobre saúde.
+9. **Admin** (`/admin`). Painel da plataforma, só leitura, com código do Google Authenticator. Mostra o funil, as pendências e a tabela das profissionais.
 
 Nenhuma marcação se sobrepõe a outra. O app checa antes de salvar (`findConflict`, em `src/services/scheduling.ts`) e o banco recusa sobreposição de qualquer forma.
 
@@ -146,6 +147,7 @@ Feito em 27/10/2026:
 - [x] **Termos e privacidade:** `/termos` e `/privacidade`, com aceite obrigatório no cadastro (`terms_version` e `terms_accepted_at` nos metadados do usuário) e links no rodapé, no pedido e na página pública. Falta completar a identificação do responsável (CNPJ ou CPF), e vale a revisão de um advogado.
 - [x] **Plano Clínica "em breve":** aparece, mas não pode ser assinado (`comingSoon` em `src/config/plans.ts`, também bloqueado no checkout). Para liberar, implementar logins de equipe e secretária e tirar o `comingSoon`.
 - [x] **Aviso por e-mail de pedido novo:** `/api/notify/new-request` envia pelo SMTP da Hostinger só o primeiro nome, o horário e o serviço. Cada pedido é avisado uma vez (`notified_at`). Precisa de `SMTP_PASSWORD` e `SUPABASE_SERVICE_ROLE_KEY` no servidor. Testado em 27/10/2026: o e-mail chegou, e um aviso repetido foi ignorado.
+- [x] **Lembrete por e-mail 1h antes** (testado em 27/10/2026: chegou uma vez e a chamada repetida não reenviou).
 - [x] **Next.js 15.5.28 e React 19.1.10:** fecham a falha crítica de execução remota de código (RCE) da 15.5.2.
 
 Antes de divulgar:

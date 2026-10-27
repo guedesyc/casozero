@@ -62,13 +62,13 @@ function fromProfessionalRow(row: Row): { professional: Professional; account: A
 }
 
 const requestRow = (r: TriageRequest, ownerId: string): Row => ({
-  id: r.id, professional_id: ownerId, name: r.name, age: ageNumber(r.age), phone: r.phone, guardian_name: r.guardianName || null,
+  id: r.id, professional_id: ownerId, name: r.name, age: ageNumber(r.age), phone: r.phone, email: r.email || null, guardian_name: r.guardianName || null,
   category: r.category || 'Outro assunto', service: r.service ?? null, payment_reported_at: r.paymentReportedAt ?? null, paid_at: r.paidAt ?? null, proposed_date: r.proposedDate ?? null, proposed_time: r.proposedTime ?? null, concern: r.concern ?? '', expectation: r.expectation ?? '', modality: r.modality ?? null,
   requested_date: r.requestedDate, requested_time: r.requestedTime, scheduled_date: r.scheduledDate ?? null, scheduled_time: r.scheduledTime ?? null,
   status: r.status, decline_reason: r.declineReason ?? null, outcome_note: r.outcomeNote ?? null, patient_id: r.patientId ?? null,
 });
 const fromRequestRow = (row: Row): TriageRequest => ({
-  id: row.id as string, trackToken: (row.track_token as string) ?? undefined, paymentReportedAt: (row.payment_reported_at as string) ?? undefined, proposedDate: (row.proposed_date as string) ?? undefined, proposedTime: hhmm(row.proposed_time as string), paidAt: (row.paid_at as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, guardianName: (row.guardian_name as string) ?? undefined,
+  id: row.id as string, trackToken: (row.track_token as string) ?? undefined, paymentReportedAt: (row.payment_reported_at as string) ?? undefined, proposedDate: (row.proposed_date as string) ?? undefined, proposedTime: hhmm(row.proposed_time as string), paidAt: (row.paid_at as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, email: (row.email as string) ?? undefined, guardianName: (row.guardian_name as string) ?? undefined,
   category: row.category as string, service: (row.service as string) ?? undefined, concern: (row.concern as string) ?? '', expectation: (row.expectation as string) ?? '', modality: (row.modality as TriageRequest['modality']) ?? undefined,
   requestedDate: row.requested_date as string, requestedTime: hhmm(row.requested_time as string)!, scheduledDate: (row.scheduled_date as string) ?? undefined, scheduledTime: hhmm(row.scheduled_time as string),
   status: row.status as TriageRequest['status'], createdAt: row.created_at as string, declineReason: (row.decline_reason as string) ?? undefined,
@@ -76,11 +76,11 @@ const fromRequestRow = (row: Row): TriageRequest => ({
 });
 
 const patientRow = (p: Patient, ownerId: string): Row => ({
-  id: p.id, professional_id: ownerId, request_id: p.requestId ?? null, name: p.name, age: ageNumber(p.age), phone: p.phone, guardian_name: p.guardianName || null,
+  id: p.id, professional_id: ownerId, request_id: p.requestId ?? null, name: p.name, age: ageNumber(p.age), phone: p.phone, email: p.email || null, guardian_name: p.guardianName || null,
   category: p.category ?? '', concern: p.concern ?? '', expectation: p.expectation ?? '', status: p.status, recurrence: p.recurrence ?? null,
 });
 const fromPatientRow = (row: Row): Patient => ({
-  id: row.id as string, requestId: (row.request_id as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string,
+  id: row.id as string, requestId: (row.request_id as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, email: (row.email as string) ?? undefined,
   guardianName: (row.guardian_name as string) ?? undefined, category: row.category as string, concern: row.concern as string, expectation: row.expectation as string,
   status: row.status as Patient['status'], recurrence: (row.recurrence as Patient['recurrence']) ?? undefined, createdAt: row.created_at as string,
 });
@@ -259,6 +259,7 @@ const SUBMIT_ERRORS: Record<string, string> = {
   TELEFONE_INVALIDO: 'Confira o telefone: use DDD e número.',
   RESPONSAVEL_OBRIGATORIO: 'Para menores de 18 anos, informe o nome do responsável.',
   NOME_INVALIDO: 'Confira o seu nome.',
+  EMAIL_INVALIDO: 'Confira o seu e-mail.',
   PROFISSIONAL_NAO_ENCONTRADO: 'Não encontramos este profissional.',
 };
 
@@ -267,7 +268,7 @@ export async function submitPublicRequest(slug: string, input: NewRequest): Prom
   const { data, error } = await db().rpc('submit_triage_request', {
     p_slug: slug, p_name: input.name, p_age: ageNumber(input.age), p_phone: input.phone, p_guardian_name: input.guardianName ?? null,
     p_category: input.category, p_service: input.service ?? null, p_concern: input.concern, p_expectation: input.expectation, p_modality: input.modality ?? null,
-    p_date: input.requestedDate, p_time: input.requestedTime,
+    p_date: input.requestedDate, p_time: input.requestedTime, p_email: input.email ?? null,
   });
   if (error) {
     const code = Object.keys(SUBMIT_ERRORS).find(key => error.message.includes(key));

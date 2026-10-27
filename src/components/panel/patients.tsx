@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarPlus, Check, ChevronRight, FileDown, NotebookPen, Repeat, Search } from 'lucide-react';
 import { formatDayMonth, formatLong, formatShort, formatStamp, today, WEEKDAYS } from '@/lib/dates';
 import { PROFESSIONS } from '@/config/professions';
-import { addExtraSession, changeRecurrence, ClinicData, ensureNote, saveNote, setAppointmentStatus, setPatientStatus, useClinic } from '@/services/clinic';
+import { addExtraSession, changeRecurrence, ClinicData, ensureNote, saveNote, setAppointmentStatus, setPatientEmail, setPatientStatus, useClinic } from '@/services/clinic';
 import { fetchNoteAccess, logNoteAccess, NoteAccess, NoteAccessAction } from '@/services/remote';
 import { isPast } from '@/services/scheduling';
 import { Frequency, Patient, PatientStatus, SessionNote } from '@/types';
@@ -105,6 +105,7 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
       <Block title="O que procurou tratar"><p className="quote">{patient.concern}</p></Block>
       <Block title="O que imaginava do acompanhamento"><p className="quote">{patient.expectation || '—'}</p></Block>
       {patient.requestId && <Link className="text-link" href={`/app/solicitacoes/detalhe/?id=${patient.requestId}`}>Ver solicitação original <ChevronRight size={14} /></Link>}
+      <PatientEmail patient={patient} update={update} />
       <AccessHistory patientId={patient.id} />
     </div>}
 
@@ -152,6 +153,20 @@ function Evolution({ patient, notes, noun, professional }: { patient: Patient; n
         {full && n.notes && <p>{n.notes}</p>}</div>
     </li>)}</ol> : <p className="muted">Nada encontrado.</p>}
   </div>;
+}
+
+/** E-mail do paciente: com ele, cada sessão marcada gera um lembrete 1h antes. */
+function PatientEmail({ patient, update }: { patient: Patient; update: Update }) {
+  const [email, setEmail] = useState(patient.email ?? '');
+  const [status, setStatus] = useState('');
+  useEffect(() => { setEmail(patient.email ?? ''); }, [patient.email]);
+  const dirty = email.trim().toLowerCase() !== (patient.email ?? '');
+  const save = () => { const r = update(d => setPatientEmail(d, patient.id, email)); setStatus(r.error ?? 'Salvo.'); };
+  return <Block title="Lembrete por e-mail">
+    <p className="muted">{patient.email ? 'O paciente recebe um e-mail cerca de 1h antes de cada sessão marcada.' : 'Informe o e-mail para o paciente receber um lembrete cerca de 1h antes de cada sessão.'}</p>
+    <div className="inline-form"><input type="email" value={email} onChange={e => { setEmail(e.target.value); setStatus(''); }} placeholder="paciente@email.com" aria-label="E-mail do paciente" /><button className="primary small" disabled={!dirty} onClick={save}>Salvar</button></div>
+    {status && <p className={status === 'Salvo.' ? 'muted small-print' : 'form-error'}>{status}</p>}
+  </Block>;
 }
 
 const ACCESS_LABELS: Record<NoteAccessAction, string> = { view: 'Caderneta aberta', create: 'Anotação criada', edit: 'Anotação editada', export: 'PDF da evolução baixado' };

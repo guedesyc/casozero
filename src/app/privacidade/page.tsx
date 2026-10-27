@@ -16,7 +16,7 @@ export default function PrivacyPage() {
 
     <LegalSection title="2. Dados que tratamos">
       <p><b>Da profissional:</b> nome, e-mail, celular, senha (guardada de forma irreversível), profissão, especialidades, demandas atendidas, registro no conselho, cidade, foto, capa, textos da página pública, serviços e preços, horários de atendimento, chave PIX e valor do sinal (quando informados), plano contratado e registros de acesso. Os dados do cartão de crédito são informados direto à Stripe e não passam pelo CasoZero.</p>
-      <p><b>Do paciente:</b> nome, idade, telefone, nome do responsável (se menor de idade), o que procura tratar e o que espera do atendimento, modalidade, horários pedidos e marcados, aviso de pagamento do sinal e as anotações e registros de evolução que a profissional escreve na caderneta. Esses dados incluem <b>dados sobre a saúde</b>, que a LGPD trata como dados pessoais sensíveis.</p>
+      <p><b>Do paciente:</b> nome, idade, telefone, e-mail (opcional), nome do responsável (se menor de idade), o que procura tratar e o que espera do atendimento, modalidade, horários pedidos e marcados, aviso de pagamento do sinal e as anotações e registros de evolução que a profissional escreve na caderneta. Esses dados incluem <b>dados sobre a saúde</b>, que a LGPD trata como dados pessoais sensíveis.</p>
       <p><b>De uso:</b> data de cadastro e do último acesso, e quem abriu, criou, editou ou exportou cada caderneta.</p>
     </LegalSection>
 
@@ -24,6 +24,7 @@ export default function PrivacyPage() {
       <ul>
         <li><b>Criar e manter a conta da profissional, cobrar a assinatura e dar suporte:</b> execução do contrato (art. 7º, V).</li>
         <li><b>Receber o pedido de triagem do paciente e repassá-lo à profissional:</b> consentimento do paciente, dado no formulário antes do envio (art. 11, I). A profissional usa esses dados também para a tutela da saúde (art. 11, II, f).</li>
+        <li><b>Enviar ao paciente o lembrete por e-mail cerca de 1h antes do atendimento</b>, quando ele informa o e-mail: consentimento (art. 7º, I). O lembrete traz só o horário e o nome da profissional, nada sobre a saúde. Para deixar de receber, basta pedir à profissional que retire o e-mail.</li>
         <li><b>Guardar a caderneta:</b> tutela da saúde, por profissional da saúde (art. 11, II, f), e cumprimento das obrigações de guarda de prontuário do conselho de cada profissão (art. 11, II, a).</li>
         <li><b>Segurança, prevenção a fraude e registro de acesso:</b> legítimo interesse (art. 7º, IX).</li>
       </ul>
@@ -33,7 +34,7 @@ export default function PrivacyPage() {
     <LegalSection title="4. Com quem compartilhamos">
       <ul>
         <li><b>Supabase:</b> banco de dados, login e armazenamento de fotos.</li>
-        <li><b>Hostinger:</b> hospedagem do site e envio de e-mails.</li>
+        <li><b>Hostinger:</b> hospedagem do site e envio de e-mails (avisos de pedido novo e lembretes).</li>
         <li><b>Stripe:</b> cobrança das assinaturas.</li>
         <li><b>WhatsApp:</b> as mensagens para o paciente são abertas no WhatsApp da própria profissional, que decide enviá-las.</li>
       </ul>
