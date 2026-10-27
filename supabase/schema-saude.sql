@@ -381,7 +381,7 @@ returns jsonb language sql stable security definer set search_path = '' as $$
     'pixKey', nullif(p.settings -> 'account' ->> 'pixKey', ''),
     'pixHolder', nullif(p.settings -> 'account' ->> 'pixHolder', ''),
     'signalAmount', nullif(p.settings -> 'account' ->> 'signalAmount', ''),
-    'contactPhone', nullif(p.settings -> 'account' ->> 'phone', '')
+    'contactPhone', nullif(p.phone, '')
   )
   from public.triage_requests r join public.professionals p on p.id = r.professional_id
   where r.track_token = p_token and char_length(p_token) between 40 and 80;
