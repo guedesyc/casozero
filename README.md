@@ -145,7 +145,7 @@ Testado contra o banco e o site publicado, como visitante sem login, como profis
 Feito em 27/10/2026:
 - [x] **Termos e privacidade:** `/termos` e `/privacidade`, com aceite obrigatório no cadastro (`terms_version` e `terms_accepted_at` nos metadados do usuário) e links no rodapé, no pedido e na página pública. Falta completar a identificação do responsável (CNPJ ou CPF), e vale a revisão de um advogado.
 - [x] **Plano Clínica "em breve":** aparece, mas não pode ser assinado (`comingSoon` em `src/config/plans.ts`, também bloqueado no checkout). Para liberar, implementar logins de equipe e secretária e tirar o `comingSoon`.
-- [x] **Aviso por e-mail de pedido novo:** `/api/notify/new-request` envia pelo SMTP da Hostinger só o primeiro nome, o horário e o serviço. Cada pedido é avisado uma vez (`notified_at`). Precisa de `SMTP_PASSWORD` e `SUPABASE_SERVICE_ROLE_KEY` no servidor.
+- [x] **Aviso por e-mail de pedido novo:** `/api/notify/new-request` envia pelo SMTP da Hostinger só o primeiro nome, o horário e o serviço. Cada pedido é avisado uma vez (`notified_at`). Precisa de `SMTP_PASSWORD` e `SUPABASE_SERVICE_ROLE_KEY` no servidor. Testado em 27/10/2026: o e-mail chegou, e um aviso repetido foi ignorado.
 - [x] **Next.js 15.5.28 e React 19.1.10:** fecham a falha crítica de execução remota de código (RCE) da 15.5.2.
 
 Antes de divulgar:
