@@ -24,6 +24,8 @@ export default function TrackPage({ params }: { params: Promise<{ token: string 
   const [calendar, setCalendar] = useState<{ professional: Professional; busy: Appointment[] } | null>(null);
   const [responding, setResponding] = useState(false);
   const [responseError, setResponseError] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const [paidNotice, setPaidNotice] = useState(false);
 
   useEffect(() => {
     if (!TOKEN.test(token)) { setInfo(null); return; }
@@ -58,14 +60,21 @@ export default function TrackPage({ params }: { params: Promise<{ token: string 
     const fresh = await fetchByTrackingToken(token);
     if (fresh) setInfo(fresh);
     setChoosing(false);
+    setAgreed(true);
   }
   async function markPaid() {
     setReporting(true);
     const ok = await reportPayment(token);
     setReporting(false);
     if (ok) setReported(new Date().toISOString());
+    if (ok) setPaidNotice(true);
   }
   const phoneLink = info.contactPhone ? `https://wa.me/55${info.contactPhone.replace(/\D/g, '')}` : undefined;
+  const when = `${formatLong(info.scheduledDate ?? info.requestedDate)}, às ${info.scheduledTime ?? info.requestedTime}`;
+  // Mensagens separadas: uma só diz que concorda; a outra, que o PIX já foi feito.
+  const agreeText = `Olá, ${first}! Concordo com o horário de ${when}.`;
+  const paidText = `Olá, ${first}! Já fiz o PIX do sinal da triagem de ${when}, e concordo com o horário. Obrigado(a)!`;
+  const waLink = (text: string) => phoneLink ? `${phoneLink}?text=${encodeURIComponent(text)}` : undefined;
 
   return <main className="public-shell"><section className="public-card track-card">
     <p className="eyebrow">Acompanhamento</p>
@@ -115,8 +124,10 @@ export default function TrackPage({ params }: { params: Promise<{ token: string 
       {paidAt
         ? <p className="paid-note"><Check size={15} /> Pagamento informado em {formatStamp(paidAt)}. {first} vai confirmar o sinal e a vaga fica firmada.</p>
         : info.status === 'awaiting_payment' && <button type="button" className="primary full paid-button" onClick={markPaid} disabled={reporting}>{reporting ? 'Registrando…' : 'Já paguei'}</button>}
+      {paidNotice && waLink(paidText) && <a className="secondary full track-contact" href={waLink(paidText)} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Avisar {first} que já fiz o PIX</a>}
     </div>}
 
+    {agreed && !paidNotice && waLink(agreeText) && <a className="secondary full track-contact" href={waLink(agreeText)} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Avisar {first} que concordo com o horário</a>}
     {phoneLink && <a className="secondary full track-contact" href={phoneLink} target="_blank" rel="noreferrer"><MessageCircle size={16} /> Falar com {first} pelo WhatsApp</a>}
     <p className="fineprint">Página do pedido de {formatShort(info.requestedDate)}. Guarde este link para voltar a ele.</p>
     <Link href={`/${info.slug}`} className="auth-back">Ir para a página de {first}</Link>
