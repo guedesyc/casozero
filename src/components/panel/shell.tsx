@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
-import { CalendarDays, Check, Clock3, CreditCard, ExternalLink, Inbox, LayoutDashboard, Link2, Menu, PanelsTopLeft, Settings, Sparkles, UserRound, Users, UsersRound, X } from 'lucide-react';
+import { CalendarDays, Check, Clock3, CreditCard, ExternalLink, Inbox, LayoutDashboard, Link2, Menu, PanelsTopLeft, Settings, Sparkles, UserRound, Users, UsersRound, Wallet, X } from 'lucide-react';
 import { formatBRL, PLANS } from '@/config/plans';
 import { PROFESSIONS } from '@/config/professions';
 import { supabase } from '@/lib/supabase';
@@ -17,6 +17,7 @@ const NAV: { group: string; items: { label: string; href: string; icon: typeof I
     { label: 'Solicitações', href: '/app/solicitacoes', icon: Inbox },
     { label: 'Agenda', href: '/app/agenda', icon: CalendarDays },
     { label: 'Pacientes', href: '/app/pacientes', icon: Users },
+    { label: 'Financeiro', href: '/app/financeiro', icon: Wallet },
   ] },
   { group: 'Configuração', items: [
     { label: 'Disponibilidade', href: '/app/disponibilidade', icon: Clock3 },

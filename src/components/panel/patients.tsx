@@ -10,6 +10,7 @@ import { isPast } from '@/services/scheduling';
 import { Frequency, Patient, PatientStatus, SessionNote } from '@/types';
 import { APPOINTMENT_LABELS, Badge, Block, FormError, initials, PageTitle, PATIENT_LABELS } from './shell';
 import { Dialog } from './requests';
+import { SessionPriceInput } from './finance';
 
 type Update = ReturnType<typeof useClinic>['update'];
 const recurrenceText = (p: Patient) => p.recurrence ? `${WEEKDAYS[p.recurrence.weekday]}, ${p.recurrence.time} · ${p.recurrence.frequency === 'weekly' ? 'semanal' : 'quinzenal'}` : 'Sem horário fixo';
@@ -105,6 +106,7 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
       <Block title="O que procurou tratar"><p className="quote">{patient.concern}</p></Block>
       <Block title="O que imaginava do acompanhamento"><p className="quote">{patient.expectation || '—'}</p></Block>
       {patient.requestId && <Link className="text-link" href={`/app/solicitacoes/detalhe/?id=${patient.requestId}`}>Ver solicitação original <ChevronRight size={14} /></Link>}
+      <Block title="Valor da sessão"><p className="muted">Usado no Financeiro. Em branco, vale o valor padrão da conta.</p><SessionPriceInput patient={patient} update={update} /></Block>
       <PatientEmail patient={patient} update={update} />
       <AccessHistory patientId={patient.id} />
     </div>}

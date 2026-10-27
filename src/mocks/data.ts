@@ -47,6 +47,8 @@ export const demoAccount: AccountSettings = {
   pixKey: '',
   pixHolder: '',
   signalAmount: '',
+  sessionPrice: 'R$ 180,00',
+  triagePrice: 'R$ 100,00',
   notifyNewRequest: true,
   notifyDailyAgenda: true,
   remindPatients: true,

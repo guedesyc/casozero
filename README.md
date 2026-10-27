@@ -39,7 +39,8 @@ npm run dev
 6. **Caderneta.** Uma página por sessão (Sessão 1, Sessão 15…), com anotações e uma linha de evolução.
 7. **Evolução.** Linha do tempo de todas as sessões, com busca e "Baixar PDF". Cada abertura, edição e PDF fica no registro de acesso, visto em "Triagem e dados".
 8. **Lembrete ao paciente.** Se o paciente informou o e-mail no pedido (opcional), ou se a profissional cadastrou o e-mail na ficha (Triagem e dados), ele recebe um e-mail cerca de 1h antes da triagem confirmada e de cada sessão marcada. O `pg_cron` do Supabase (job `casozero-lembretes`) chama `/api/notify/reminders` a cada 5 minutos. A função `claim_due_reminders` marca cada atendimento (`reminded_at`) para nunca repetir o envio. O e-mail não traz nada sobre saúde.
-9. **Admin** (`/admin`). Painel da plataforma, só leitura, com código do Google Authenticator. Mostra o funil, as pendências e a tabela das profissionais.
+9. **Financeiro** (`/app/financeiro`). Mostra o mês: recebido (atendimentos realizados), a receber (marcados), total e faltas, além da tabela por paciente e das triagens. O valor da sessão é o do paciente (`patients.session_price`, editável no Financeiro e na ficha) ou o padrão da conta. A triagem vale o preço do serviço escolhido ou o padrão da conta. Faltas e cancelamentos não entram.
+10. **Admin** (`/admin`). Painel da plataforma, só leitura, com código do Google Authenticator. Mostra o funil, as pendências e a tabela das profissionais.
 
 Nenhuma marcação se sobrepõe a outra. O app checa antes de salvar (`findConflict`, em `src/services/scheduling.ts`) e o banco recusa sobreposição de qualquer forma.
 

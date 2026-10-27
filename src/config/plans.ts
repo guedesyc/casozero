@@ -29,6 +29,15 @@ export const formatBRL = (value: number) => value.toLocaleString('pt-BR', { styl
 export const priceLabel = (plan: Plan) => plan.price === 0 ? 'Grátis' : `${formatBRL(plan.price)}/mês${plan.perProfessional ? ' por profissional' : ''}`;
 
 /** Valor digitado livremente ("60", "60,00", "R$ 1.200,50") → "R$ 60,00". Sem número, devolve o texto como veio. */
+/** Lê um valor digitado ("R$ 1.200,50", "180", "60,00") como número; vazio ou inválido vira undefined. */
+export function parseMoney(value?: string): number | undefined {
+  const raw = (value ?? '').replace(/R\$|\s/g, '');
+  if (!raw) return undefined;
+  const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : /^\d{1,3}(\.\d{3})+$/.test(raw) ? raw.replace(/\./g, '') : raw;
+  const amount = Number(normalized);
+  return Number.isFinite(amount) && amount >= 0 ? amount : undefined;
+}
+
 export function formatMoney(value?: string) {
   const raw = (value ?? '').replace(/R\$|\s/g, '');
   if (!raw) return '';

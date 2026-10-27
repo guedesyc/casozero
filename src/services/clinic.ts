@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { addDays, today } from '@/lib/dates';
-import { PLANS, PlanId } from '@/config/plans';
+import { parseMoney, PLANS, PlanId } from '@/config/plans';
 import { buildSeed, buildTeamAppointments, demoAccount, demoProfessional, demoTeam } from '@/mocks/data';
 import { ProfessionId, PROFESSIONS } from '@/config/professions';
 import { AccountSettings, Appointment, AppointmentStatus, Patient, PatientStatus, Professional, Recurrence, SessionNote, TeamAppointment, TeamMember, TriageRequest } from '@/types';
@@ -383,6 +383,17 @@ export function setPatientEmail(data: ClinicData, patientId: string, email: stri
   const value = email.trim().toLowerCase();
   if (value && !isEmail(value)) return { error: 'Confira o e-mail: use o formato nome@exemplo.com.' };
   patient.email = value || undefined;
+  return {};
+}
+
+/** Valor da sessão deste paciente (vazio volta ao padrão da conta). */
+export function setPatientSessionPrice(data: ClinicData, patientId: string, value: string): Outcome {
+  const patient = data.patients.find(p => p.id === patientId);
+  if (!patient) return { error: 'Paciente não encontrado.' };
+  if (!value.trim()) { patient.sessionPrice = undefined; return {}; }
+  const amount = parseMoney(value);
+  if (amount === undefined || amount > 100000) return { error: 'Confira o valor: use números, como 180 ou 180,00.' };
+  patient.sessionPrice = Math.round(amount * 100) / 100;
   return {};
 }
 

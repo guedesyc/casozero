@@ -55,6 +55,9 @@ export interface AccountSettings {
   pixKey: string;
   pixHolder: string;
   signalAmount: string;
+  /** Valores padrão do Financeiro (texto, ex.: "R$ 180,00"): sessão sem valor próprio e triagem sem serviço com preço. */
+  sessionPrice?: string;
+  triagePrice?: string;
   notifyNewRequest: boolean;
   notifyDailyAgenda: boolean;
   remindPatients: boolean;
@@ -122,6 +125,8 @@ export interface Patient {
   phone: string;
   /** Opcional; usado para o lembrete 1h antes de cada sessão. */
   email?: string;
+  /** Valor de cada sessão deste paciente; sem ele vale o padrão da conta. */
+  sessionPrice?: number;
   guardianName?: string;
   category: string;
   concern: string;

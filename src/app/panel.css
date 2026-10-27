@@ -286,3 +286,15 @@
 .consent a,.profile-footer a{text-decoration:underline}
 .pricing-tag.soon{background:#e8e4dd;color:#111}
 .plan-options button:disabled{opacity:.55;cursor:not-allowed}
+
+/* ---------- Financeiro ---------- */
+.month-switch{display:flex;align-items:center;gap:8px}
+.month-switch strong{min-width:150px;text-align:center;font-size:14px}
+.finance-alerts{display:grid;gap:6px;margin-bottom:18px}
+.finance-alerts p{display:flex;gap:8px;align-items:flex-start;margin:0;background:#f6ead0;color:#7a5a12;border-radius:8px;padding:10px 12px;font-size:13px}
+.finance-alerts a{text-decoration:underline}
+.price-input{display:inline-flex;flex-direction:column;gap:2px}
+.price-input input{border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:inherit;font-size:13px;width:160px;background:#fff}
+.price-input.compact input{width:120px;padding:5px 8px}
+.price-input .form-error{font-size:11px;padding:4px 6px}
+.finance-table td a{text-decoration:underline}

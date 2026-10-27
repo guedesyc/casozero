@@ -27,7 +27,7 @@ type Row = Record<string, unknown>;
 function professionalRow(data: ClinicData, ownerId: string): Row {
   const p = data.professional;
   const settings: Settings = {
-    account: { notifyNewRequest: data.account.notifyNewRequest, notifyDailyAgenda: data.account.notifyDailyAgenda, remindPatients: data.account.remindPatients, reminderHours: data.account.reminderHours, twoFactor: data.account.twoFactor, pixKey: data.account.pixKey, pixHolder: data.account.pixHolder, signalAmount: data.account.signalAmount },
+    account: { notifyNewRequest: data.account.notifyNewRequest, notifyDailyAgenda: data.account.notifyDailyAgenda, remindPatients: data.account.remindPatients, reminderHours: data.account.reminderHours, twoFactor: data.account.twoFactor, pixKey: data.account.pixKey, pixHolder: data.account.pixHolder, signalAmount: data.account.signalAmount, sessionPrice: data.account.sessionPrice, triagePrice: data.account.triagePrice },
     team: data.team, welcomeSeen: data.welcomeSeen, viewAs: data.viewAs,
   };
   return {
@@ -55,7 +55,7 @@ function fromProfessionalRow(row: Row): { professional: Professional; account: A
       email: (row.email as string) ?? '', phone: (row.phone as string) ?? '',
       notifyNewRequest: settings.account?.notifyNewRequest ?? true, notifyDailyAgenda: settings.account?.notifyDailyAgenda ?? true,
       remindPatients: settings.account?.remindPatients ?? false, reminderHours: settings.account?.reminderHours ?? 24, twoFactor: false,
-      pixKey: settings.account?.pixKey ?? '', pixHolder: settings.account?.pixHolder ?? '', signalAmount: settings.account?.signalAmount ?? '',
+      pixKey: settings.account?.pixKey ?? '', pixHolder: settings.account?.pixHolder ?? '', signalAmount: settings.account?.signalAmount ?? '', sessionPrice: settings.account?.sessionPrice ?? '', triagePrice: settings.account?.triagePrice ?? '',
     },
     team: settings.team ?? [], welcomeSeen: settings.welcomeSeen, viewAs: settings.viewAs,
   };
@@ -76,11 +76,12 @@ const fromRequestRow = (row: Row): TriageRequest => ({
 });
 
 const patientRow = (p: Patient, ownerId: string): Row => ({
-  id: p.id, professional_id: ownerId, request_id: p.requestId ?? null, name: p.name, age: ageNumber(p.age), phone: p.phone, email: p.email || null, guardian_name: p.guardianName || null,
+  id: p.id, professional_id: ownerId, request_id: p.requestId ?? null, name: p.name, age: ageNumber(p.age), phone: p.phone, email: p.email || null, session_price: p.sessionPrice ?? null, guardian_name: p.guardianName || null,
   category: p.category ?? '', concern: p.concern ?? '', expectation: p.expectation ?? '', status: p.status, recurrence: p.recurrence ?? null,
 });
 const fromPatientRow = (row: Row): Patient => ({
   id: row.id as string, requestId: (row.request_id as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, email: (row.email as string) ?? undefined,
+  sessionPrice: row.session_price == null ? undefined : Number(row.session_price),
   guardianName: (row.guardian_name as string) ?? undefined, category: row.category as string, concern: row.concern as string, expectation: row.expectation as string,
   status: row.status as Patient['status'], recurrence: (row.recurrence as Patient['recurrence']) ?? undefined, createdAt: row.created_at as string,
 });

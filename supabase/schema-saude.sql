@@ -119,6 +119,7 @@ create table if not exists public.patients (
   concern         text not null default '' check (char_length(concern) <= 2000),
   expectation     text not null default '' check (char_length(expectation) <= 2000),
   status          text not null default 'active' check (status in ('active','paused','discharged')),
+  session_price   numeric(10,2) check (session_price is null or session_price between 0 and 100000),
   recurrence      jsonb check (recurrence is null or jsonb_typeof(recurrence) = 'object'),
   created_at      timestamptz not null default now(),
   unique (professional_id, id),
@@ -714,3 +715,9 @@ select cron.unschedule('casozero-lembretes') where exists (select 1 from cron.jo
 select cron.schedule('casozero-lembretes', '*/5 * * * *', $cron$
   select net.http_post(url := 'https://casozero.com.br/api/notify/reminders', headers := '{"Content-Type": "application/json"}'::jsonb, body := '{}'::jsonb);
 $cron$);
+
+-- ---------------------------------------------------------------------
+-- 14. Financeiro: valor da sessão de cada paciente (sem ele vale o padrão
+--     da conta, guardado em professionals.settings.account.sessionPrice).
+-- ---------------------------------------------------------------------
+alter table public.patients add column if not exists session_price numeric(10,2) check (session_price is null or session_price between 0 and 100000);
