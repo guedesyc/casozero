@@ -574,3 +574,73 @@ create table if not exists public.stripe_webhook_events (
 alter table public.stripe_webhook_events enable row level security;
 revoke all on public.stripe_webhook_events from anon, authenticated;
 grant all on public.stripe_webhook_events to service_role;
+
+-- ---------------------------------------------------------------------
+-- 11. Painel de admin (/admin): só leitura, só para quem está em
+--     platform_admins e entrou com o código do autenticador (aal2).
+--     Dos pacientes saem só contagens.
+-- ---------------------------------------------------------------------
+create table if not exists public.platform_admins (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.platform_admins enable row level security;
+revoke all on public.platform_admins from anon, authenticated;
+grant all on public.platform_admins to service_role;
+
+insert into public.platform_admins (user_id)
+select id from auth.users where lower(email) = 'guedesymc@gmail.com'
+on conflict (user_id) do nothing;
+
+-- A tela usa para decidir se pede o código; não revela dado nenhum.
+create or replace function public.is_platform_admin()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.platform_admins where user_id = auth.uid());
+$$;
+
+create or replace function public.admin_overview()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not exists (select 1 from public.platform_admins where user_id = auth.uid()) then
+    raise exception 'SEM_ACESSO' using errcode = 'P0001';
+  end if;
+  if coalesce(auth.jwt() ->> 'aal', '') <> 'aal2' then
+    raise exception 'CODIGO_NECESSARIO' using errcode = 'P0001';
+  end if;
+  return coalesce((
+    select jsonb_agg(item order by (item ->> 'createdAt') desc) from (
+      select jsonb_build_object(
+        'id', u.id,
+        'email', u.email,
+        'name', coalesce(p.name, u.raw_user_meta_data ->> 'name', ''),
+        'profession', p.profession,
+        'slug', p.slug,
+        'createdAt', u.created_at,
+        'lastSignInAt', u.last_sign_in_at,
+        'emailConfirmed', u.email_confirmed_at is not null,
+        'hasProfile', p.id is not null,
+        'hasPhoto', p.photo_url is not null,
+        'services', coalesce(jsonb_array_length(p.services), 0),
+        'openDays', coalesce((select count(*) from jsonb_array_elements(p.availability -> 'windows') w where (w ->> 'enabled')::boolean), 0),
+        'requests', (select count(*) from public.triage_requests r where r.professional_id = u.id),
+        'lastRequestAt', (select max(r.created_at) from public.triage_requests r where r.professional_id = u.id),
+        'patients', (select count(*) from public.patients pa where pa.professional_id = u.id),
+        'sessionsDone', (select count(*) from public.appointments a where a.professional_id = u.id and a.kind = 'session' and a.status = 'done'),
+        'plan', s.plan_id,
+        'planStatus', s.status,
+        'complimentary', s.status = 'active' and s.stripe_subscription_id is null,
+        'isAdmin', exists (select 1 from public.platform_admins pa2 where pa2.user_id = u.id)
+      ) as item
+      from auth.users u
+      left join public.professionals p on p.id = u.id
+      left join lateral (
+        select plan_id, status, stripe_subscription_id from public.subscriptions s
+         where s.user_id = u.id order by (s.status = 'active') desc, (s.status = 'past_due') desc, s.updated_at desc limit 1
+      ) s on true
+    ) rows
+  ), '[]'::jsonb);
+end $$;
+
+revoke all on function public.is_platform_admin(), public.admin_overview() from public, anon, authenticated;
+grant execute on function public.is_platform_admin() to authenticated;
+grant execute on function public.admin_overview() to authenticated;

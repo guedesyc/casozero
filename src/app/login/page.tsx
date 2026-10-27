@@ -30,7 +30,9 @@ export default function LoginPage() {
       if (/email not confirmed/i.test(error.message)) { setUnconfirmed(true); return; }
       setNotice(loginError(error.message)); return;
     }
-    window.location.href = '/app';
+    // Volta para onde a pessoa estava (ex.: /admin); só caminhos do próprio site.
+    const next = new URLSearchParams(window.location.search).get('next');
+    window.location.href = next && /^\/(?![/\\])/.test(next) ? next : '/app';
   }
 
   return <main className="auth-page"><section className="auth-card">

@@ -53,6 +53,7 @@ Nenhuma marcação se sobrepõe a outra. O app checa antes de salvar (`findConfl
 | | `/app/equipe` equipe (plano Clínica) |
 | | `/app/configuracoes/assinatura` plano e uso |
 | | `/app/configuracoes` dados de acesso e relatório dos pacientes |
+| | `/admin` painel da plataforma (só leitura; só contas em `platform_admins`, com código do Google Authenticator) |
 
 ## Planos
 
@@ -68,7 +69,7 @@ Os preços de teste da Stripe ficam como padrão em `src/config/stripe.ts` e só
 
 O esquema completo está em `supabase/schema-saude.sql`. Rode no SQL Editor do projeto "Caso Zero"; o script pode ser executado de novo sem efeito colateral.
 
-- **Tabelas:** `professionals`, `triage_requests`, `patients`, `appointments`, `session_notes`, `note_access_log` (quem abriu, criou, editou ou exportou a caderneta; só se acrescenta), `subscriptions` e `stripe_webhook_events` (Stripe).
+- **Tabelas:** `professionals`, `triage_requests`, `patients`, `appointments`, `session_notes`, `note_access_log` (quem abriu, criou, editou ou exportou a caderneta; só se acrescenta), `subscriptions` e `stripe_webhook_events` (Stripe), `platform_admins` (quem acessa o `/admin`; hoje só guedesymc@gmail.com). O `/admin` lê tudo pela função `admin_overview`, que exige sessão com código do autenticador (aal2) e devolve dos pacientes só contagens. Acesso livre sem Stripe: linha ativa em `subscriptions` sem `stripe_subscription_id` (aparece como cortesia).
 - **Acesso:** RLS em todas; cada profissional só lê e grava o que é seu. Permissões (GRANT) explícitas em cada tabela, como o Supabase exige para tabelas novas a partir de 30/10/2026.
 - **Visitante anônimo:** sem acesso a tabelas. A página pública usa só `get_public_profile` (sem e-mail, telefone ou motivo de bloqueio), `get_busy_slots` (horários sem nomes) e `submit_triage_request`. Esta valida horário, janela do dia, bloqueios, antecedência, horizonte e limite de 2 pedidos pendentes por telefone.
 - **Regras no banco:**
