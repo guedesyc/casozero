@@ -268,3 +268,21 @@
 .admin-issues span{background:#f6ead0;color:#7a5a12;border-radius:10px;padding:2px 8px;font-size:11px}
 .admin-table .text-link{display:inline-flex;align-items:center;gap:4px;background:none;border:0;padding:0;cursor:pointer;font-size:12px}
 @media(max-width:900px){.admin-top{padding:12px 16px}.admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---------- Termos e privacidade ---------- */
+.legal-page{min-height:100vh;background:var(--paper)}
+.legal-top{display:flex;justify-content:space-between;align-items:center;padding:16px max(16px,calc((100vw - 760px)/2));background:#fff;border-bottom:1px solid var(--line)}
+.legal-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.legal-body{max-width:760px;margin:0 auto;padding:40px 16px 64px;line-height:1.65;font-size:15px;color:#2a2826}
+.legal-body h1{font:600 36px Fraunces,serif;margin:6px 0 4px;letter-spacing:-.02em}
+.legal-meta{font-size:12px;color:var(--muted);margin:0 0 22px}
+.legal-intro{border-left:3px solid #111;padding-left:14px;margin-bottom:10px}
+.legal-section h2{font-size:17px;margin:30px 0 8px}
+.legal-section ul{padding-left:20px;margin:8px 0}
+.legal-section li{margin:6px 0}
+.legal-body a{text-decoration:underline}
+.legal-foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}
+.landing-footer>div a{color:inherit}
+.consent a,.profile-footer a{text-decoration:underline}
+.pricing-tag.soon{background:#e8e4dd;color:#111}
+.plan-options button:disabled{opacity:.55;cursor:not-allowed}

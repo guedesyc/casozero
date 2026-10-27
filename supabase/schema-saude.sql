@@ -644,3 +644,9 @@ end $$;
 revoke all on function public.is_platform_admin(), public.admin_overview() from public, anon, authenticated;
 grant execute on function public.is_platform_admin() to authenticated;
 grant execute on function public.admin_overview() to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 12. Aviso por e-mail de pedido novo: marca o pedido avisado para a
+--     rota /api/notify/new-request não mandar o mesmo e-mail duas vezes.
+-- ---------------------------------------------------------------------
+alter table public.triage_requests add column if not exists notified_at timestamptz;

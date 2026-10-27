@@ -105,7 +105,7 @@ export default function Booking({ data, submit, topic }: { data: PublicData; sub
         <Row label="Triagem" value={slot ? `${formatLong(slot.date)}, às ${slot.time}${need.modality ? ` · ${need.modality}` : ''}` : '—'} edit={() => go('slot')} />
       </dl>
       {missing.length > 0 && <div className="form-error"><AlertCircle size={15} /><span>Para enviar, falta informar {missing.map(([step, label], i) => <span key={label}>{i > 0 && (i === missing.length - 1 ? ' e ' : ', ')}<button type="button" onClick={() => go(step)}>{label}</button></span>)}.</span></div>}
-      <label className="consent"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>Autorizo que {professional.name} receba estas informações, que incluem dados sobre a minha saúde, para avaliar e agendar meu atendimento.</span></label>
+      <label className="consent"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>Autorizo que {professional.name} receba estas informações, que incluem dados sobre a minha saúde, para avaliar e agendar meu atendimento, conforme a <a href="/privacidade" target="_blank" rel="noreferrer">Política de privacidade</a>.</span></label>
       <div className="button-row"><button className="secondary" onClick={() => go('slot')}><ArrowLeft size={16} /> Voltar</button><button className="primary" disabled={!consent || missing.length > 0 || sending} onClick={send}>{sending ? 'Enviando…' : <>Pedir triagem <ArrowRight size={18} /></>}</button></div>
       <p className="fineprint">O horário fica reservado até {first} confirmar.</p>
     </>}

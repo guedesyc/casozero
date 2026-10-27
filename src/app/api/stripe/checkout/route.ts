@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { MIN_CLINIC_SEATS, STRIPE_PRICE_IDS, PaidPlanId } from '@/config/stripe';
+import { PLANS } from '@/config/plans';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const plan = body.plan as PaidPlanId | 'gratis';
   if (plan !== 'gratis' && !(plan in STRIPE_PRICE_IDS)) return NextResponse.json({ error: 'Plano inválido.' }, { status: 400 });
+  if (PLANS[plan].comingSoon) return NextResponse.json({ error: 'Este plano ainda não está disponível.' }, { status: 400 });
   const price = plan === 'gratis' ? undefined : STRIPE_PRICE_IDS[plan];
   if (plan !== 'gratis' && !price) return NextResponse.json({ error: 'Preço deste plano ainda não configurado na Stripe.' }, { status: 503 });
   // Clínica: uma unidade por profissional.

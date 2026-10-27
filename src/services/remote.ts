@@ -274,6 +274,8 @@ export async function submitPublicRequest(slug: string, input: NewRequest): Prom
     return { error: code ? SUBMIT_ERRORS[code] : 'Não foi possível enviar o pedido agora. Tente de novo em instantes.' };
   }
   const result = data as { id: string; trackToken: string };
+  // Avisa a profissional por e-mail; se falhar, o pedido continua valendo e aparece no painel.
+  void fetch('/api/notify/new-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trackToken: result.trackToken }), keepalive: true }).catch(() => undefined);
   return { value: { ...input, id: result.id, trackToken: result.trackToken, status: 'pending', createdAt: new Date().toISOString() } };
 }
 

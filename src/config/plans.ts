@@ -12,13 +12,15 @@ export interface Plan {
   description: string;
   items: string[];
   featured?: boolean;
+  /** Aparece nos planos, mas ainda não pode ser assinado. */
+  comingSoon?: boolean;
 }
 
 /** Todos os recursos estão em todos os planos; o Grátis só limita o total de pacientes. */
 export const PLANS: Record<PlanId, Plan> = {
   gratis: { id: 'gratis', name: 'Grátis', price: 0, maxPatients: 5, team: false, description: 'Tudo liberado para até 5 pacientes.', items: ['Até 5 pacientes', 'Página pública e agendamento', 'Agenda e horários fixos', 'Caderneta e evolução', 'Todos os recursos liberados'] },
   profissional: { id: 'profissional', name: 'Profissional', price: 49.90, team: false, description: 'Para quem atende por conta própria, sem limite nenhum.', items: ['Pacientes ilimitados', 'Página pública e agendamento', 'Agenda e horários fixos', 'Caderneta e evolução', 'Todos os recursos liberados'], featured: true },
-  clinica: { id: 'clinica', name: 'Clínica', price: 39.90, perProfessional: true, team: true, description: 'Para consultórios com mais de um profissional.', items: ['Tudo do Profissional, para cada profissional', 'Agenda compartilhada', 'Secretária com acesso só à agenda', 'A caderneta continua visível só para cada profissional'] },
+  clinica: { id: 'clinica', name: 'Clínica', price: 39.90, perProfessional: true, team: true, description: 'Para consultórios com mais de um profissional.', items: ['Tudo do Profissional, para cada profissional', 'Agenda compartilhada', 'Secretária com acesso só à agenda', 'A caderneta continua visível só para cada profissional'], comingSoon: true },
 };
 
 export const LEGACY_PLAN_IDS: Record<string, PlanId> = { caso_zero: 'gratis', caso_um: 'profissional', caso_dois: 'profissional', caso_tres: 'clinica' };

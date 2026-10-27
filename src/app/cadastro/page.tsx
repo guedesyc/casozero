@@ -9,10 +9,12 @@ import { loadClinic, saveClinic, saveProfessional, slugify } from '@/services/cl
 import { ConfirmEmailStep } from '@/components/ui/email-confirm';
 import { Modality } from '@/types';
 import { BrandLockup } from '@/components/ui/brand';
+import { LEGAL_VERSION } from '@/components/ui/legal';
 
 export default function SignupPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [account, setAccount] = useState({ name: '', email: '', phone: '', password: '', confirm: '' });
+  const [accepted, setAccepted] = useState(false);
   const [choice, setChoice] = useState<ProfessionChoice>({ profession: 'psicologia', specialties: [], categories: [] });
   const [details, setDetails] = useState<{ councilNumber: string; modality: Modality; city: string }>({ councilNumber: '', modality: 'ambos', city: '' });
   const [loading, setLoading] = useState(false);
@@ -23,6 +25,7 @@ export default function SignupPage() {
     e.preventDefault();
     if (account.phone.replace(/\D/g, '').length < 10) { setNotice('Informe o celular com DDD.'); return; }
     if (account.password !== account.confirm) { setNotice('As senhas não conferem.'); return; }
+    if (!accepted) { setNotice('Para continuar, aceite os Termos de uso e a Política de privacidade.'); return; }
     setNotice(''); setStep(2);
   }
 
@@ -34,7 +37,7 @@ export default function SignupPage() {
     // Sem Supabase (demonstração) o perfil vai direto para o navegador. Com Supabase ele fica nos
     // metadados do usuário e o painel monta a conta vazia no primeiro acesso.
     if (!supabase) { const data = loadClinic(); saveProfessional(data, profile); data.account.phone = account.phone.trim(); saveClinic(data); window.location.href = '/app'; return; }
-    const { data: result, error } = await supabase.auth.signUp({ email: account.email, password: account.password, options: { emailRedirectTo: `${window.location.origin}/cadastro/confirmado`, data: { full_name: account.name, phone: account.phone.trim(), profession: choice.profession, specialties: choice.specialties, categories: choice.categories, council_number: profile.councilNumber, modality: details.modality, city: details.city } } });
+    const { data: result, error } = await supabase.auth.signUp({ email: account.email, password: account.password, options: { emailRedirectTo: `${window.location.origin}/cadastro/confirmado`, data: { full_name: account.name, phone: account.phone.trim(), profession: choice.profession, specialties: choice.specialties, categories: choice.categories, council_number: profile.councilNumber, modality: details.modality, city: details.city, terms_version: LEGAL_VERSION, terms_accepted_at: new Date().toISOString() } } });
     if (error) { setNotice(/password/i.test(error.message) ? 'Senha fraca: use pelo menos 8 caracteres, misturando letras e números.' : /rate|seconds|limit/i.test(error.message) ? 'Muitas tentativas seguidas. Aguarde um minuto e tente de novo.' : 'Não foi possível criar o cadastro. Confira os dados e tente de novo.'); setLoading(false); return; }
     // A conta só vale depois da confirmação do e-mail.
     if (result.session) await supabase.auth.signOut();
@@ -53,6 +56,7 @@ export default function SignupPage() {
         <label className="field"><span>Celular (WhatsApp)</span><div className="auth-input"><Phone size={16} /><input type="tel" required autoComplete="tel" value={account.phone} onChange={e => setAccount({ ...account, phone: e.target.value })} placeholder="(00) 00000-0000" /></div></label>
         <label className="field"><span>Senha</span><div className="auth-input"><LockKeyhole size={16} /><input type="password" minLength={8} required value={account.password} onChange={e => setAccount({ ...account, password: e.target.value })} placeholder="Mínimo de 8 caracteres" /></div></label>
         <label className="field"><span>Confirmar senha</span><div className="auth-input"><LockKeyhole size={16} /><input type="password" minLength={8} required value={account.confirm} onChange={e => setAccount({ ...account, confirm: e.target.value })} placeholder="Repita sua senha" /></div></label>
+        <label className="consent"><input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)} /><span>Li e aceito os <Link href="/termos" target="_blank">Termos de uso</Link> e a <Link href="/privacidade" target="_blank">Política de privacidade</Link>.</span></label>
         <button className="primary full">Continuar <ArrowRight size={16} /></button>
       </form>
     </> : <>

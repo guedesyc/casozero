@@ -142,10 +142,14 @@ Testado contra o banco e o site publicado, como visitante sem login, como profis
 
 ## Pendências e próximos passos
 
+Feito em 27/10/2026:
+- [x] **Termos e privacidade:** `/termos` e `/privacidade`, com aceite obrigatório no cadastro (`terms_version` e `terms_accepted_at` nos metadados do usuário) e links no rodapé, no pedido e na página pública. Falta completar a identificação do responsável (CNPJ ou CPF), e vale a revisão de um advogado.
+- [x] **Plano Clínica "em breve":** aparece, mas não pode ser assinado (`comingSoon` em `src/config/plans.ts`, também bloqueado no checkout). Para liberar, implementar logins de equipe e secretária e tirar o `comingSoon`.
+- [x] **Aviso por e-mail de pedido novo:** `/api/notify/new-request` envia pelo SMTP da Hostinger só o primeiro nome, o horário e o serviço. Cada pedido é avisado uma vez (`notified_at`). Precisa de `SMTP_PASSWORD` e `SUPABASE_SERVICE_ROLE_KEY` no servidor.
+- [x] **Next.js 15.5.28 e React 19.1.10:** fecham a falha crítica de execução remota de código (RCE) da 15.5.2.
+
 Antes de divulgar:
-- [ ] **Política de privacidade e termos de uso** (`/privacidade`, `/termos`), com aceite no cadastro. O sistema guarda dado de saúde, que a LGPD trata como dado sensível.
-- [ ] **Plano Clínica:** a equipe ainda não funciona de verdade. Não há convites, logins de colegas nem de secretária, e em contas reais a agenda compartilhada fica vazia. Até existir, tirar o Clínica da venda ou marcar como "em breve".
-- [ ] **Aviso de pedido novo para a profissional** (e-mail). Hoje ela só vê o pedido quando abre o painel.
+- [ ] **Hostinger:** `SMTP_PASSWORD` (senha da caixa contato@casozero.com.br) e `SUPABASE_SERVICE_ROLE_KEY` nas variáveis de ambiente.
 - [ ] **Supabase:** senha mínima 8 com letras e números (Authentication → Sign In / Providers → Email). Corrigir o Site URL para `https://casozero.com.br`, sem `/**`.
 - [ ] **Backups:** o plano grátis do Supabase não tem backup automático e pausa projetos parados. Para guardar prontuário, o plano Pro dá backup diário e proteção contra senhas vazadas.
 

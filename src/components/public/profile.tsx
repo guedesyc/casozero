@@ -65,7 +65,7 @@ export function PublicProfile({ data }: { data: PublicData }) {
       </ol></section>
 
       <section className="profile-final"><h2>Vamos conversar?</h2><Link className="primary cta" href={booking}><CalendarCheck size={18} /> Marcar consulta!</Link></section>
-      <footer className="profile-footer">Página criada com CasoZero</footer>
+      <footer className="profile-footer">Página criada com CasoZero · <Link href="/privacidade">Privacidade</Link></footer>
     </div>
   </main>;
 }
