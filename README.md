@@ -150,7 +150,8 @@ Feito em 27/10/2026:
 
 Antes de divulgar:
 - [ ] **Hostinger:** `SMTP_PASSWORD` (senha da caixa contato@casozero.com.br) e `SUPABASE_SERVICE_ROLE_KEY` nas variáveis de ambiente.
-- [ ] **Supabase:** senha mínima 8 com letras e números (Authentication → Sign In / Providers → Email). Corrigir o Site URL para `https://casozero.com.br`, sem `/**`.
+- [x] **Senha mínima 8** no Supabase (feito em 27/10/2026).
+- [ ] **Site URL** no Supabase: `https://casozero.com.br`, sem `/**`.
 - [ ] **Backups:** o plano grátis do Supabase não tem backup automático e pausa projetos parados. Para guardar prontuário, o plano Pro dá backup diário e proteção contra senhas vazadas.
 
 Depois:
