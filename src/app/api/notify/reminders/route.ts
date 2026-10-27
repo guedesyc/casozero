@@ -24,7 +24,8 @@ export async function POST() {
   if (error) { console.error('[reminders] falha ao buscar', error.message); return NextResponse.json({ sent: 0 }, { status: 500 }); }
   let sent = 0;
   for (const due of (data ?? []) as Due[]) {
-    const noun = due.kind === 'triage' ? 'triagem' : PROFESSIONS[due.profession]?.sessionNoun ?? 'sessão';
+    // Para o paciente, a triagem é a primeira consulta.
+    const noun = due.kind === 'triage' ? 'consulta' : PROFESSIONS[due.profession]?.sessionNoun ?? 'sessão';
     const day = due.date === todayInSaoPaulo() ? 'hoje' : new Date(`${due.date}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' });
     const proFirst = due.professional.trim().split(/\s+/)[0];
     const digits = (due.phone ?? '').replace(/\D/g, '');
