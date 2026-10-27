@@ -62,7 +62,7 @@ Todos os recursos estão em todos os planos (`src/config/plans.ts`).
 - **Profissional:** R$ 49,90/mês, sem limite.
 - **Clínica:** R$ 39,90/mês por profissional (mínimo 2, máximo 100), com agenda compartilhada e secretária que vê só a agenda.
 
-Os preços de teste da Stripe ficam como padrão em `src/config/stripe.ts` e só valem com chave de teste. Com chave de produção (`sk_live_`), o servidor precisa de `STRIPE_PRICE_PROFISSIONAL` e `STRIPE_PRICE_CLINICA`. Cada evento do webhook é gravado em `stripe_webhook_events` e aplicado uma vez só; se o banco falhar, a resposta é erro e a Stripe tenta de novo. Trocar de plano altera a assinatura existente, sem criar outra; voltar ao Grátis cancela no fim do período. O webhook trata `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` e `invoice.payment_failed`.
+Os preços de teste da Stripe ficam como padrão em `src/config/stripe.ts` e só valem com chave de teste. Com chave de produção (`sk_live_` ou a restrita `rk_live_`), o servidor precisa de `STRIPE_PRICE_PROFISSIONAL` e `STRIPE_PRICE_CLINICA`. Cada evento do webhook é gravado em `stripe_webhook_events` e aplicado uma vez só; se o banco falhar, a resposta é erro e a Stripe tenta de novo. Trocar de plano altera a assinatura existente, sem criar outra; voltar ao Grátis cancela no fim do período. O webhook trata `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` e `invoice.payment_failed`.
 
 ## Banco de dados (Supabase)
 
@@ -120,5 +120,5 @@ supabase/
 - [ ] **Avisos automáticos:** novo pedido por e-mail, resumo diário da agenda e lembrete por WhatsApp. Foram tirados da tela até existirem de verdade.
 - [ ] **Plano Clínica com vários logins:** convites, colegas e secretária com acesso próprio. Hoje a equipe é só uma lista salva.
 - [ ] **Pedidos novos em tempo real:** hoje o painel busca novidades ao voltar para a aba.
-- [ ] **Stripe em produção:** produtos e webhook já criados; falta colocar na Hostinger `STRIPE_SECRET_KEY` (sk_live), `STRIPE_WEBHOOK_SECRET` do webhook `casozero-producao`, `STRIPE_PRICE_PROFISSIONAL` e `STRIPE_PRICE_CLINICA`.
+- [ ] **Stripe em produção:** produtos e webhook já criados; falta colocar na Hostinger `STRIPE_SECRET_KEY` (rk_live, chave restrita "casozero-site"), `STRIPE_WEBHOOK_SECRET` do webhook `casozero-producao`, `STRIPE_PRICE_PROFISSIONAL` e `STRIPE_PRICE_CLINICA`.
 - [ ] **LGPD:** política de privacidade e termos de uso publicados, e registro de acesso à caderneta.
