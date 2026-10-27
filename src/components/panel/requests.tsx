@@ -126,7 +126,16 @@ ${link}` : ''}`,
               {request.paymentReportedAt
                 ? <p className="muted">O paciente informou o pagamento em {formatStamp(request.paymentReportedAt)}. Confira na sua conta e confirme.</p>
                 : <p className="muted">O paciente ainda não informou o pagamento.</p>}
-              <button className="primary full" onClick={() => setError(update(d => confirmPayment(d, request.id)).error ?? '')}><Check size={16} /> Confirmar pagamento</button>
+              <button className="primary full" onClick={() => {
+                // Abre o WhatsApp da paciente no mesmo clique, para o navegador não bloquear a janela.
+                const result = update(d => confirmPayment(d, request.id));
+                setError(result.error ?? '');
+                if (!result.error) {
+                  const when = `${formatLong(request.scheduledDate ?? request.requestedDate)}, às ${request.scheduledTime ?? request.requestedTime}`;
+                  const text = `Olá, ${first}! Tudo confirmado: o pagamento foi recebido e a sua triagem com ${proFirst} está marcada para ${when}. Até lá!`;
+                  window.open(whatsapp(request.phone, text), '_blank', 'noopener');
+                }
+              }}><Check size={16} /> Confirmar pagamento</button>
             </div>}
             <button className="secondary full" onClick={() => sendWhatsapp(request)} disabled={sendingWhatsapp}><MessageCircle size={16} /> {sendingWhatsapp ? 'Preparando…' : 'Avisar pelo WhatsApp'}</button>
             {triageHappened ? <button className="primary full" onClick={() => setMode('outcome')}><ClipboardCheck size={16} /> Registrar resultado da triagem</button>
