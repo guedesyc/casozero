@@ -505,3 +505,72 @@ create policy perfis_update_own on storage.objects for update to authenticated
   using (bucket_id = 'perfis' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy perfis_delete_own on storage.objects for delete to authenticated
   using (bucket_id = 'perfis' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- ---------------------------------------------------------------------
+-- 9. Registro de acesso à caderneta (LGPD / guarda do prontuário)
+--    Só se acrescenta: ninguém edita nem apaga. Criar e editar são
+--    registrados por gatilho; abrir e exportar, pela função log_note_access.
+-- ---------------------------------------------------------------------
+create table if not exists public.note_access_log (
+  id              bigint generated always as identity primary key,
+  professional_id uuid not null references public.professionals (id) on delete cascade,
+  actor_id        uuid not null,
+  patient_id      uuid not null,
+  note_id         uuid,
+  action          text not null check (action in ('view','create','edit','export')),
+  at              timestamptz not null default now()
+);
+create index if not exists note_access_log_owner_idx on public.note_access_log (professional_id, patient_id, at desc);
+
+alter table public.note_access_log enable row level security;
+revoke all on public.note_access_log from anon, authenticated;
+grant select on public.note_access_log to authenticated;
+grant all on public.note_access_log to service_role;
+drop policy if exists note_access_log_read_own on public.note_access_log;
+create policy note_access_log_read_own on public.note_access_log for select to authenticated
+  using (professional_id = (select auth.uid()));
+
+create or replace function public.log_note_change()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'UPDATE' and new.notes is not distinct from old.notes and new.evolution is not distinct from old.evolution then
+    return new;
+  end if;
+  insert into public.note_access_log (professional_id, actor_id, patient_id, note_id, action)
+  values (new.professional_id, coalesce(auth.uid(), new.professional_id), new.patient_id, new.id,
+          case when tg_op = 'INSERT' then 'create' else 'edit' end);
+  return new;
+end $$;
+drop trigger if exists session_notes_log on public.session_notes;
+create trigger session_notes_log after insert or update on public.session_notes
+  for each row execute function public.log_note_change();
+
+-- Abrir a caderneta/evolução ('view') ou baixar o PDF da evolução ('export').
+create or replace function public.log_note_access(p_patient_id uuid, p_action text)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if p_action not in ('view','export') then raise exception 'ACAO_INVALIDA' using errcode = 'P0001'; end if;
+  if not exists (select 1 from public.patients where id = p_patient_id and professional_id = auth.uid()) then
+    raise exception 'PACIENTE_NAO_ENCONTRADO' using errcode = 'P0001';
+  end if;
+  insert into public.note_access_log (professional_id, actor_id, patient_id, action)
+  values (auth.uid(), auth.uid(), p_patient_id, p_action);
+end $$;
+revoke all on function public.log_note_access(uuid, text), public.log_note_change() from public, anon, authenticated;
+grant execute on function public.log_note_access(uuid, text) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 10. Eventos recebidos da Stripe (cada evento é processado uma vez só)
+--     Só o webhook (service_role) acessa.
+-- ---------------------------------------------------------------------
+create table if not exists public.stripe_webhook_events (
+  id           text primary key check (id like 'evt_%'),
+  type         text not null,
+  livemode     boolean not null,
+  received_at  timestamptz not null default now(),
+  processed_at timestamptz,
+  error        text
+);
+alter table public.stripe_webhook_events enable row level security;
+revoke all on public.stripe_webhook_events from anon, authenticated;
+grant all on public.stripe_webhook_events to service_role;

@@ -244,3 +244,6 @@
 .track-proposal p{margin:0;font-size:14px}
 .track-proposal-title{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#7a5a12;font-weight:700}
 .track-proposal .slot-picker{margin:6px 0}
+.access-log{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-height:260px;overflow:auto}
+.access-log li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.9rem}
+.access-log li small{color:var(--muted);white-space:nowrap}

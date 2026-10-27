@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarPlus, Check, ChevronRight, FileDown, NotebookPen, Repeat, Search } from 'lucide-react';
 import { formatDayMonth, formatLong, formatShort, formatStamp, today, WEEKDAYS } from '@/lib/dates';
 import { PROFESSIONS } from '@/config/professions';
 import { addExtraSession, changeRecurrence, ClinicData, ensureNote, saveNote, setAppointmentStatus, setPatientStatus, useClinic } from '@/services/clinic';
+import { fetchNoteAccess, logNoteAccess, NoteAccess, NoteAccessAction } from '@/services/remote';
 import { isPast } from '@/services/scheduling';
 import { Frequency, Patient, PatientStatus, SessionNote } from '@/types';
 import { APPOINTMENT_LABELS, Badge, Block, FormError, initials, PageTitle, PATIENT_LABELS } from './shell';
@@ -41,6 +42,14 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
   const [dialog, setDialog] = useState<'none' | 'recurrence' | 'extra'>('none');
   const [statusError, setStatusError] = useState('');
   useEffect(() => { if (sessionId) { setOpenNote(sessionId); setTab('caderneta'); } }, [sessionId]);
+  // Cada abertura da caderneta ou da evolução fica no registro de acesso.
+  const logged = useRef('');
+  useEffect(() => {
+    const key = `${id}:${tab}`;
+    if (!id || !data.patients.some(p => p.id === id) || (tab !== 'caderneta' && tab !== 'evolucao') || logged.current === key) return;
+    logged.current = key;
+    void logNoteAccess(id, 'view');
+  }, [id, tab, data.patients]);
   const notes = useMemo(() => data.notes.filter(n => n.patientId === id).sort((a, b) => b.number - a.number), [data.notes, id]);
   const appointments = useMemo(() => data.appointments.filter(a => a.patientId === id).sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)), [data.appointments, id]);
   if (!patient) return <section className="page empty"><h1>Paciente não encontrado</h1><Link href="/app/pacientes">Voltar</Link></section>;
@@ -96,6 +105,7 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
       <Block title="O que procurou tratar"><p className="quote">{patient.concern}</p></Block>
       <Block title="O que imaginava do acompanhamento"><p className="quote">{patient.expectation || '—'}</p></Block>
       {patient.requestId && <Link className="text-link" href={`/app/solicitacoes/detalhe/?id=${patient.requestId}`}>Ver solicitação original <ChevronRight size={14} /></Link>}
+      <AccessHistory patientId={patient.id} />
     </div>}
 
     {dialog === 'recurrence' && <RecurrenceDialog patient={patient} update={update} close={() => setDialog('none')} />}
@@ -133,7 +143,7 @@ function Evolution({ patient, notes, noun, professional }: { patient: Patient; n
   const [full, setFull] = useState(false);
   const ordered = notes.slice().sort((a, b) => a.number - b.number).filter(n => !query || `${n.notes} ${n.evolution}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="evolution">
-    <div className="toolbar no-print"><label className="search"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar nas anotações" /></label><label className="inline-check"><input type="checkbox" checked={full} onChange={e => setFull(e.target.checked)} /> Mostrar anotações completas</label><button className="primary small" onClick={() => window.print()} title="Abre a impressão; escolha “Salvar como PDF” no destino"><FileDown size={14} /> Baixar PDF</button></div>
+    <div className="toolbar no-print"><label className="search"><Search size={15} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar nas anotações" /></label><label className="inline-check"><input type="checkbox" checked={full} onChange={e => setFull(e.target.checked)} /> Mostrar anotações completas</label><button className="primary small" onClick={() => { void logNoteAccess(patient.id, 'export'); window.print(); }} title="Abre a impressão; escolha “Salvar como PDF” no destino"><FileDown size={14} /> Baixar PDF</button></div>
     <header className="print-only"><h2>Evolução — {patient.name}</h2><p>{professional} · emitido em {formatShort(today())}</p></header>
     {ordered.length ? <ol className="evo-timeline">{ordered.map(n => <li key={n.id}>
       <span className="timeline-dot">{n.number === 0 ? 'T' : n.number}</span>
@@ -142,6 +152,19 @@ function Evolution({ patient, notes, noun, professional }: { patient: Patient; n
         {full && n.notes && <p>{n.notes}</p>}</div>
     </li>)}</ol> : <p className="muted">Nada encontrado.</p>}
   </div>;
+}
+
+const ACCESS_LABELS: Record<NoteAccessAction, string> = { view: 'Caderneta aberta', create: 'Anotação criada', edit: 'Anotação editada', export: 'PDF da evolução baixado' };
+
+/** Quem mexeu na caderneta e quando (guarda do prontuário). */
+function AccessHistory({ patientId }: { patientId: string }) {
+  const [items, setItems] = useState<NoteAccess[] | null | undefined>();
+  useEffect(() => { let alive = true; fetchNoteAccess(patientId).then(r => { if (alive) setItems(r); }); return () => { alive = false; }; }, [patientId]);
+  if (items === null) return null;
+  return <Block title="Acessos à caderneta">
+    {items === undefined ? <p className="muted">Carregando…</p> : items.length ? <ul className="access-log">{items.map((item, i) => <li key={i}><span>{ACCESS_LABELS[item.action]}</span><small>{new Date(item.at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</small></li>)}</ul> : <p className="muted">Nenhum acesso registrado ainda.</p>}
+    <p className="muted small-print">Mostra os 50 mais recentes. Os registros não podem ser editados nem apagados.</p>
+  </Block>;
 }
 
 function RecurrenceDialog({ patient, update, close }: { patient: Patient; update: Update; close: () => void }) {

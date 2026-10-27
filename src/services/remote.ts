@@ -320,3 +320,18 @@ export async function respondProposal(token: string, date?: string, time?: strin
   }
   return { status: (data as { status: string }).status };
 }
+
+/** Registro de acesso à caderneta (criar e editar o banco registra sozinho). */
+export type NoteAccessAction = 'view' | 'create' | 'edit' | 'export';
+export interface NoteAccess { action: NoteAccessAction; at: string }
+
+export async function logNoteAccess(patientId: string, action: 'view' | 'export') {
+  if (!supabase) return;
+  await supabase.rpc('log_note_access', { p_patient_id: patientId, p_action: action });
+}
+
+export async function fetchNoteAccess(patientId: string): Promise<NoteAccess[] | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('note_access_log').select('action, at').eq('patient_id', patientId).order('at', { ascending: false }).limit(50);
+  return error ? null : (data as NoteAccess[]);
+}

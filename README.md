@@ -11,7 +11,7 @@ O paciente acessa a página do profissional, conta o que procura tratar e pede u
 | **Código** | GitHub `guedesyc/casozero`, branch `master` |
 | **Site no ar** | `casozero.com.br`, na Hostinger (Node.js). A Hostinger publica sozinha cada push na `master`, em cerca de 2 minutos |
 | **Banco e login** | Supabase, projeto **"Caso Zero"**, ref `rlxaninumfevbectpbub`. O projeto do Tá Marcado (`hifxnpoobgtxoifdsvtz`) é outro e fica na mesma organização: não mexer nele por engano |
-| **Pagamentos** | Stripe, área de teste (sandbox "Área restrita de CasoZero"). Webhook em `https://casozero.com.br/api/stripe/webhook` |
+| **Pagamentos** | Stripe, conta "CasoZero" (separada do Tá Marcado). Produção: Profissional `price_1UV1XqRFq8zWjSshhFu3jAsy`, Clínica `price_1UV1YGRFq8zWjSshNwnFxL1y`, webhook `casozero-producao` em `https://casozero.com.br/api/stripe/webhook`. Testes: "Área restrita de CasoZero" |
 | **E-mails de login** | SMTP da Hostinger, remetente `contato@casozero.com.br`. Modelos em português em `supabase/email-templates/` (colados no Supabase em Authentication → Emails) |
 | **GitHub Pages** | Só vitrine estática; não é usado em produção |
 
@@ -62,13 +62,13 @@ Todos os recursos estão em todos os planos (`src/config/plans.ts`).
 - **Profissional:** R$ 49,90/mês, sem limite.
 - **Clínica:** R$ 39,90/mês por profissional (mínimo 2, máximo 100), com agenda compartilhada e secretária que vê só a agenda.
 
-Os preços de teste da Stripe ficam como padrão em `src/config/stripe.ts`. Para cobrar de verdade, crie os produtos na conta de produção da Stripe e informe `STRIPE_PRICE_PROFISSIONAL` e `STRIPE_PRICE_CLINICA` no servidor. Trocar de plano altera a assinatura existente, sem criar outra; voltar ao Grátis cancela no fim do período. O webhook trata `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` e `invoice.payment_failed`.
+Os preços de teste da Stripe ficam como padrão em `src/config/stripe.ts` e só valem com chave de teste. Com chave de produção (`sk_live_`), o servidor precisa de `STRIPE_PRICE_PROFISSIONAL` e `STRIPE_PRICE_CLINICA`. Cada evento do webhook é gravado em `stripe_webhook_events` e aplicado uma vez só; se o banco falhar, a resposta é erro e a Stripe tenta de novo. Trocar de plano altera a assinatura existente, sem criar outra; voltar ao Grátis cancela no fim do período. O webhook trata `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` e `invoice.payment_failed`.
 
 ## Banco de dados (Supabase)
 
 O esquema completo está em `supabase/schema-saude.sql`. Rode no SQL Editor do projeto "Caso Zero"; o script pode ser executado de novo sem efeito colateral.
 
-- **Tabelas:** `professionals`, `triage_requests`, `patients`, `appointments`, `session_notes` e `subscriptions` (Stripe).
+- **Tabelas:** `professionals`, `triage_requests`, `patients`, `appointments`, `session_notes`, `note_access_log` (quem abriu, criou, editou ou exportou a caderneta; só se acrescenta), `subscriptions` e `stripe_webhook_events` (Stripe).
 - **Acesso:** RLS em todas; cada profissional só lê e grava o que é seu. Permissões (GRANT) explícitas em cada tabela, como o Supabase exige para tabelas novas a partir de 30/10/2026.
 - **Visitante anônimo:** sem acesso a tabelas. A página pública usa só `get_public_profile` (sem e-mail, telefone ou motivo de bloqueio), `get_busy_slots` (horários sem nomes) e `submit_triage_request`. Esta valida horário, janela do dia, bloqueios, antecedência, horizonte e limite de 2 pedidos pendentes por telefone.
 - **Regras no banco:**
@@ -120,5 +120,5 @@ supabase/
 - [ ] **Avisos automáticos:** novo pedido por e-mail, resumo diário da agenda e lembrete por WhatsApp. Foram tirados da tela até existirem de verdade.
 - [ ] **Plano Clínica com vários logins:** convites, colegas e secretária com acesso próprio. Hoje a equipe é só uma lista salva.
 - [ ] **Pedidos novos em tempo real:** hoje o painel busca novidades ao voltar para a aba.
-- [ ] **Stripe em produção:** criar os produtos na conta real e trocar as chaves de teste.
+- [ ] **Stripe em produção:** produtos e webhook já criados; falta colocar na Hostinger `STRIPE_SECRET_KEY` (sk_live), `STRIPE_WEBHOOK_SECRET` do webhook `casozero-producao`, `STRIPE_PRICE_PROFISSIONAL` e `STRIPE_PRICE_CLINICA`.
 - [ ] **LGPD:** política de privacidade e termos de uso publicados, e registro de acesso à caderneta.
