@@ -1,6 +1,6 @@
 # CasoZero
 
-Agendamento de triagem, agenda e caderneta de sessões para profissionais da saúde que atendem por conta própria: psicologia, psicanálise, fisioterapia, fonoaudiologia, nutrição, terapia ocupacional, psicopedagogia e terapias integrativas.
+Agendamento de triagem, agenda e caderneta de sessões para profissionais da saúde que atendem por conta própria: psicologia, psicanálise, fisioterapia, fonoaudiologia, nutrição, terapia ocupacional, psicopedagogia, terapias integrativas e educação física (Educador Físico, conselho CREF).
 
 O paciente acessa a página do profissional, conta o que procura tratar e pede um horário de triagem. A profissional confirma, faz a triagem, define o horário fixo dos atendimentos e registra cada sessão numa caderneta, que forma a evolução do paciente.
 

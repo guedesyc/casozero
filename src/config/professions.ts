@@ -13,7 +13,8 @@ export type ProfessionId =
   | 'nutricao'
   | 'terapia_ocupacional'
   | 'psicopedagogia'
-  | 'terapias_integrativas';
+  | 'terapias_integrativas'
+  | 'educacao_fisica';
 
 export interface Profession {
   id: ProfessionId;
@@ -88,6 +89,13 @@ export const PROFESSIONS: Record<ProfessionId, Profession> = {
     categories: ['Ansiedade', 'Estresse', 'Sono', 'Dores crônicas', 'Autoconhecimento', 'Família', 'Relacionamento'],
     sessionNoun: 'sessão',
     examples: { concern: 'ando muito estressado e com dores nas costas.', expectation: 'me sentir mais calmo e dormir melhor.', serviceName: 'Sessão de acupuntura', serviceDescription: 'Atendimento individual para dores, estresse e sono.', headline: 'Terapias integrativas para estresse, dor e sono.' },
+  },
+  educacao_fisica: {
+    id: 'educacao_fisica', label: 'Educador Físico', title: 'Educador(a) físico(a)', council: 'CREF', specialtyLabel: 'Especialidade',
+    specialties: ['Personal trainer', 'Musculação', 'Treinamento funcional', 'Pilates', 'Corrida', 'Treinamento esportivo', 'Exercício para idosos', 'Condicionamento e reabilitação', 'Ginástica laboral', 'Natação e hidroginástica', 'Yoga'],
+    categories: ['Emagrecimento', 'Ganho de massa muscular', 'Condicionamento físico', 'Saúde do idoso', 'Postura e mobilidade', 'Preparação para corrida', 'Performance esportiva', 'Gestação e pós-parto', 'Qualidade de vida', 'Treino em casa'],
+    sessionNoun: 'aula',
+    examples: { concern: 'quero perder peso e ganhar disposição, mas não consigo manter uma rotina de treinos.', expectation: 'treinar com acompanhamento e ver resultado sem me machucar.', serviceName: 'Personal trainer', serviceDescription: 'Treino individual planejado para o seu objetivo, presencial ou online.', headline: 'Treino personalizado para emagrecer, ganhar força e cuidar da saúde.' },
   },
 };
 

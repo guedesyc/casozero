@@ -51,7 +51,7 @@ create table if not exists public.professionals (
   name           text not null check (char_length(name) between 2 and 120),
   email          text check (email is null or char_length(email) <= 254),
   phone          text check (phone is null or char_length(phone) <= 30),
-  profession     text not null check (profession in ('psicologia','psicanalise','fisioterapia','fonoaudiologia','nutricao','terapia_ocupacional','psicopedagogia','terapias_integrativas')),
+  profession     text not null check (profession in ('psicologia','psicanalise','fisioterapia','fonoaudiologia','nutricao','terapia_ocupacional','psicopedagogia','terapias_integrativas','educacao_fisica')),
   council_number text check (council_number is null or char_length(council_number) <= 40),
   specialties    text[] not null default '{}' check (cardinality(specialties) <= 30),
   categories     text[] not null default '{}' check (cardinality(categories) <= 40),
@@ -721,3 +721,15 @@ $cron$);
 --     da conta, guardado em professionals.settings.account.sessionPrice).
 -- ---------------------------------------------------------------------
 alter table public.patients add column if not exists session_price numeric(10,2) check (session_price is null or session_price between 0 and 100000);
+
+-- ---------------------------------------------------------------------
+-- 15. Profissão Educador Físico (conselho CREF).
+-- ---------------------------------------------------------------------
+-- Remove a regra antiga da profissão, qualquer que seja o nome que o banco deu a ela.
+do $$ declare c text; begin
+  for c in select conname from pg_constraint where conrelid = 'public.professionals'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%profession = ANY%' loop
+    execute format('alter table public.professionals drop constraint %I', c);
+  end loop;
+end $$;
+alter table public.professionals add constraint professionals_profession_check
+  check (profession in ('psicologia','psicanalise','fisioterapia','fonoaudiologia','nutricao','terapia_ocupacional','psicopedagogia','terapias_integrativas','educacao_fisica'));
