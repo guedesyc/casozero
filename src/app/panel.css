@@ -298,3 +298,8 @@
 .price-input.compact input{width:120px;padding:5px 8px}
 .price-input .form-error{font-size:11px;padding:4px 6px}
 .finance-table td a{text-decoration:underline}
+.phase-line{margin:12px 0 0;font-size:13px;color:var(--muted)}
+.phase-line b{color:var(--ink)}
+.phase-line .text-link{margin-left:8px}
+.file-pick{position:relative;cursor:pointer}
+.file-pick input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}

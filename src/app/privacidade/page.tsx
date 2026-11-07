@@ -35,6 +35,7 @@ export default function PrivacyPage() {
       <ul>
         <li><b>Supabase:</b> banco de dados, login e armazenamento de fotos.</li>
         <li><b>Hostinger:</b> hospedagem do site e envio de e-mails (avisos de pedido novo e lembretes).</li>
+        <li><b>Supabase (armazenamento privado):</b> o formulário de triagem que a profissional anexa a cada paciente fica em área privada, acessível só por ela, por link temporário de 5 minutos.</li>
         <li><b>Stripe:</b> cobrança das assinaturas.</li>
         <li><b>WhatsApp:</b> as mensagens para o paciente são abertas no WhatsApp da própria profissional, que decide enviá-las.</li>
       </ul>

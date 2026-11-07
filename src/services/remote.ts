@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabase';
 import { toPlanId } from '@/config/plans';
 import { addDays, iso } from '@/lib/dates';
-import { AccountSettings, Appointment, Patient, Professional, RequestStatus, SessionNote, TeamMember, TriageRequest } from '@/types';
+import { AccountSettings, Appointment, Patient, Professional, RequestStatus, SessionNote, TeamMember, TriageForm, TriageRequest } from '@/types';
 import type { ClinicData, ClinicOwner, NewRequest, Outcome } from './clinic';
 
 /**
@@ -77,13 +77,13 @@ const fromRequestRow = (row: Row): TriageRequest => ({
 
 const patientRow = (p: Patient, ownerId: string): Row => ({
   id: p.id, professional_id: ownerId, request_id: p.requestId ?? null, name: p.name, age: ageNumber(p.age), phone: p.phone, email: p.email || null, session_price: p.sessionPrice ?? null, guardian_name: p.guardianName || null,
-  category: p.category ?? '', concern: p.concern ?? '', expectation: p.expectation ?? '', status: p.status, recurrence: p.recurrence ?? null,
+  category: p.category ?? '', concern: p.concern ?? '', expectation: p.expectation ?? '', status: p.status, recurrence: p.recurrence ?? null, triage_form: p.triageForm ?? null,
 });
 const fromPatientRow = (row: Row): Patient => ({
   id: row.id as string, requestId: (row.request_id as string) ?? undefined, name: row.name as string, age: ageText(row.age as number | null), phone: row.phone as string, email: (row.email as string) ?? undefined,
   sessionPrice: row.session_price == null ? undefined : Number(row.session_price),
   guardianName: (row.guardian_name as string) ?? undefined, category: row.category as string, concern: row.concern as string, expectation: row.expectation as string,
-  status: row.status as Patient['status'], recurrence: (row.recurrence as Patient['recurrence']) ?? undefined, createdAt: row.created_at as string,
+  status: row.status as Patient['status'], recurrence: (row.recurrence as Patient['recurrence']) ?? undefined, triageForm: (row.triage_form as Patient['triageForm']) ?? undefined, createdAt: row.created_at as string,
 });
 
 const appointmentRow = (a: Appointment, ownerId: string): Row => ({
@@ -338,4 +338,34 @@ export async function fetchNoteAccess(patientId: string): Promise<NoteAccess[] |
   if (!supabase) return null;
   const { data, error } = await supabase.from('note_access_log').select('action, at').eq('patient_id', patientId).order('at', { ascending: false }).limit(50);
   return error ? null : (data as NoteAccess[]);
+}
+
+/* ---------- Formulário de triagem (arquivo privado por paciente) ---------- */
+
+const TRIAGE_BUCKET = 'triagem';
+export const TRIAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const TRIAGE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+/** Envia o formulário para a pasta da profissional; apaga o anterior, se houver. */
+export async function uploadTriageForm(patientId: string, file: File, previousPath?: string): Promise<TriageForm> {
+  const { data: { user } } = await db().auth.getUser();
+  if (!user) throw new Error('Sessão expirada. Entre de novo para enviar o arquivo.');
+  const safe = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_').slice(-80);
+  const path = `${user.id}/${patientId}/${Date.now()}-${safe}`;
+  const { error } = await db().storage.from(TRIAGE_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  if (previousPath) await db().storage.from(TRIAGE_BUCKET).remove([previousPath]);
+  return { name: file.name, path, size: file.size, uploadedAt: new Date().toISOString() };
+}
+
+/** Link temporário (5 minutos) para abrir o arquivo; ninguém mais tem acesso a ele. */
+export async function openTriageForm(path: string): Promise<string> {
+  const { data, error } = await db().storage.from(TRIAGE_BUCKET).createSignedUrl(path, 300);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function removeTriageForm(path: string) {
+  const { error } = await db().storage.from(TRIAGE_BUCKET).remove([path]);
+  if (error) throw error;
 }

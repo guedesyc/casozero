@@ -733,3 +733,32 @@ do $$ declare c text; begin
 end $$;
 alter table public.professionals add constraint professionals_profession_check
   check (profession in ('psicologia','psicanalise','fisioterapia','fonoaudiologia','nutricao','terapia_ocupacional','psicopedagogia','terapias_integrativas','educacao_fisica'));
+
+-- ---------------------------------------------------------------------
+-- 16. Formulário de triagem por paciente (arquivo privado, uma pasta por
+--     profissional: <uid>/<paciente>/<arquivo>). Só a dona lê, envia e apaga.
+--     O link de abertura é temporário (createSignedUrl, 5 minutos).
+-- ---------------------------------------------------------------------
+alter table public.patients add column if not exists triage_form jsonb
+  check (triage_form is null or jsonb_typeof(triage_form) = 'object');
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('triagem', 'triagem', false, 10485760,
+        array['application/pdf','image/jpeg','image/png','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+on conflict (id) do update set public = false, file_size_limit = 10485760,
+  allowed_mime_types = array['application/pdf','image/jpeg','image/png','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+drop policy if exists triagem_select_own on storage.objects;
+drop policy if exists triagem_insert_own on storage.objects;
+drop policy if exists triagem_update_own on storage.objects;
+drop policy if exists triagem_delete_own on storage.objects;
+create policy triagem_select_own on storage.objects for select to authenticated
+  using (bucket_id = 'triagem' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy triagem_insert_own on storage.objects for insert to authenticated
+  with check (bucket_id = 'triagem' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy triagem_update_own on storage.objects for update to authenticated
+  using (bucket_id = 'triagem' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy triagem_delete_own on storage.objects for delete to authenticated
+  using (bucket_id = 'triagem' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+select 'TRIAGEM_OK' as info;

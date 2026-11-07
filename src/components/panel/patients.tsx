@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarPlus, Check, ChevronRight, FileDown, NotebookPen, Repeat, Search } from 'lucide-react';
 import { formatDayMonth, formatLong, formatShort, formatStamp, today, WEEKDAYS } from '@/lib/dates';
 import { PROFESSIONS } from '@/config/professions';
-import { addExtraSession, changeRecurrence, ClinicData, ensureNote, saveNote, setAppointmentStatus, setPatientEmail, setPatientStatus, useClinic } from '@/services/clinic';
+import { addExtraSession, changeRecurrence, ClinicData, ensureNote, extendPhase, phaseStatus, saveNote, setAppointmentStatus, setPatientEmail, setPatientStatus, setTriageForm, useClinic } from '@/services/clinic';
+import { describeError, openTriageForm, removeTriageForm, TRIAGE_MAX_BYTES, TRIAGE_TYPES, uploadTriageForm } from '@/services/remote';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchNoteAccess, logNoteAccess, NoteAccess, NoteAccessAction } from '@/services/remote';
 import { isPast } from '@/services/scheduling';
 import { Frequency, Patient, PatientStatus, SessionNote } from '@/types';
@@ -40,7 +42,7 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
   const patient = data.patients.find(p => p.id === id);
   const [tab, setTab] = useState<'caderneta' | 'evolucao' | 'agenda' | 'dados'>('caderneta');
   const [openNote, setOpenNote] = useState<string | undefined>(sessionId);
-  const [dialog, setDialog] = useState<'none' | 'recurrence' | 'extra'>('none');
+  const [dialog, setDialog] = useState<'none' | 'recurrence' | 'extra' | 'extend'>('none');
   const [statusError, setStatusError] = useState('');
   useEffect(() => { if (sessionId) { setOpenNote(sessionId); setTab('caderneta'); } }, [sessionId]);
   // Cada abertura da caderneta ou da evolução fica no registro de acesso.
@@ -56,6 +58,7 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
   if (!patient) return <section className="page empty"><h1>Paciente não encontrado</h1><Link href="/app/pacientes">Voltar</Link></section>;
 
   const noun = PROFESSIONS[data.professional.profession].sessionNoun;
+  const phase = phaseStatus(data, patient);
   const done = appointments.filter(a => a.kind === 'session' && a.status === 'done').length;
   const missed = appointments.filter(a => a.status === 'missed').length;
   const next = appointments.find(a => a.kind === 'session' && a.status === 'scheduled' && !isPast(a.date, a.time));
@@ -76,6 +79,8 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
       <div><span>Realizadas</span><strong>{done}</strong></div>
       <div><span>Faltas</span><strong>{missed}</strong></div>
     </div>
+    {phase && <p className="phase-line"><b>Fase atual:</b> {phase.used} de {phase.planned} sessões lançadas{phase.remaining > 0 ? `, faltam ${phase.remaining}` : ''}. {patient.status === 'active' && <button className="text-link" onClick={() => setDialog('extend')}><CalendarPlus size={13} /> Adicionar sessões</button>}</p>}
+    {phase?.over && patient.status === 'active' && <div className="notice-row"><NotebookPen size={16} /><span>As sessões desta fase acabaram. Quer continuar o acompanhamento?</span><button className="primary small" onClick={() => setDialog('extend')}>Adicionar sessões</button></div>}
     <div className="tabs">{([['caderneta', 'Caderneta'], ['evolucao', 'Evolução'], ['agenda', 'Sessões'], ['dados', 'Triagem e dados']] as const).map(([k, l]) => <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
 
     {tab === 'caderneta' && <div className="notebook">
@@ -102,6 +107,7 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
       }) : <p className="muted">Nenhuma {noun} registrada.</p>}
     </Block>}
 
+    {tab === 'dados' && <TriageFormBlock patient={patient} update={update} />}
     {tab === 'dados' && <div className="two-cols">
       <Block title="O que procurou tratar"><p className="quote">{patient.concern}</p></Block>
       <Block title="O que imaginava do acompanhamento"><p className="quote">{patient.expectation || '—'}</p></Block>
@@ -113,6 +119,7 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
 
     {dialog === 'recurrence' && <RecurrenceDialog patient={patient} update={update} close={() => setDialog('none')} />}
     {dialog === 'extra' && <ExtraDialog patient={patient} update={update} close={() => setDialog('none')} />}
+    {dialog === 'extend' && <ExtendDialog patient={patient} update={update} close={() => setDialog('none')} />}
   </section>;
 }
 
@@ -210,4 +217,70 @@ function ExtraDialog({ patient, update, close }: { patient: Patient; update: Upd
     <button className="primary full" disabled={!date || !time} onClick={() => { const r = update(d => addExtraSession(d, patient.id, date, time)); if (r.error) setError(r.error); else close(); }}>Lançar na agenda</button>
     <FormError message={error} />
   </Dialog>;
+}
+
+/** Adiciona sessões à fase atual, depois da última lançada. */
+export function ExtendDialog({ patient, update, close }: { patient: Patient; update: Update; close: () => void }) {
+  const [more, setMore] = useState(10);
+  const [error, setError] = useState('');
+  return <Dialog title="Adicionar sessões" close={close}>
+    <p className="muted">As sessões entram no horário fixo de {recurrenceText(patient)}, logo depois da última já lançada.</p>
+    <label className="field"><span>Quantas sessões a mais?</span><input type="number" min={1} max={100} value={more} onChange={e => setMore(Number(e.target.value))} /></label>
+    <button className="primary full" onClick={() => { const r = update(d => extendPhase(d, patient.id, more)); if (r.error) setError(r.error); else close(); }}>Lançar {more} {more === 1 ? 'sessão' : 'sessões'}</button>
+    <FormError message={error} />
+  </Dialog>;
+}
+
+const kb = (bytes: number) => bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+/** Formulário de triagem da paciente: um arquivo por paciente, guardado em área privada. */
+function TriageFormBlock({ patient, update }: { patient: Patient; update: Update }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const form = patient.triageForm;
+  const configured = isSupabaseConfigured;
+
+  async function attach(file?: File) {
+    if (!file) return;
+    if (!TRIAGE_TYPES.includes(file.type)) { setError('Envie um PDF, Word, JPG ou PNG.'); return; }
+    if (file.size > TRIAGE_MAX_BYTES) { setError('O arquivo passa de 10 MB.'); return; }
+    setBusy(true); setError('');
+    try {
+      const saved = await uploadTriageForm(patient.id, file, form?.path);
+      const r = update(d => setTriageForm(d, patient.id, saved));
+      if (r.error) setError(r.error);
+    } catch (e) { setError(describeError(e)); }
+    setBusy(false);
+  }
+  async function open() {
+    if (!form) return;
+    // Abre a aba antes do await: o navegador bloqueia janelas abertas depois de uma espera.
+    const win = window.open('about:blank', '_blank');
+    try {
+      const url = await openTriageForm(form.path);
+      if (win) win.location.href = url; else window.location.href = url;
+    } catch (e) { win?.close(); setError(describeError(e)); }
+  }
+  async function remove() {
+    if (!form || !confirm('Remover o formulário de triagem deste paciente?')) return;
+    setBusy(true); setError('');
+    try { await removeTriageForm(form.path); update(d => setTriageForm(d, patient.id, undefined)); }
+    catch (e) { setError(describeError(e)); }
+    setBusy(false);
+  }
+
+  return <Block title="Formulário de triagem" className="spaced">
+    {!configured && <p className="muted">Disponível com a conta conectada ao servidor. No modo demonstração o arquivo não é guardado.</p>}
+    {configured && form && <div className="inline-form">
+      <span><strong>{form.name}</strong><small className="muted"> · {kb(form.size)} · enviado em {formatStamp(form.uploadedAt)}</small></span>
+      <button className="secondary small" onClick={open} disabled={busy}>Abrir</button>
+      <label className="secondary small file-pick">Substituir<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={e => attach(e.target.files?.[0])} disabled={busy} /></label>
+      <button className="text-link" onClick={remove} disabled={busy}>Remover</button>
+    </div>}
+    {configured && !form && <div className="inline-form">
+      <label className="primary small file-pick">{busy ? 'Enviando…' : 'Enviar formulário'}<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={e => attach(e.target.files?.[0])} disabled={busy} /></label>
+      <span className="muted">PDF, Word, JPG ou PNG, até 10 MB. Só você tem acesso.</span>
+    </div>}
+    <FormError message={error} />
+  </Block>;
 }

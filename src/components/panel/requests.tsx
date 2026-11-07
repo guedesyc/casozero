@@ -169,9 +169,11 @@ function OutcomeDialog({ request, update, close }: { request: TriageRequest; upd
   const [time, setTime] = useState(request.scheduledTime ?? '09:00');
   const [frequency, setFrequency] = useState<Frequency>('weekly');
   const [startDate, setStartDate] = useState(addDays(base, 7));
+  const [sessions, setSessions] = useState(10);
   const [error, setError] = useState('');
   async function save() {
-    const result = update(d => completeTriage(d, request.id, { continues: Boolean(continues), note, recurrence: continues ? { weekday, time, frequency, startDate } : undefined }));
+    if (continues && !(sessions >= 1 && sessions <= 100)) { setError('Informe entre 1 e 100 sessões iniciais.'); return; }
+    const result = update(d => completeTriage(d, request.id, { continues: Boolean(continues), note, recurrence: continues ? { weekday, time, frequency, startDate, sessions } : undefined }));
     if (result.error) { setError(result.error); return; }
     await flushClinic();
     if (result.value) window.location.href = `/app/pacientes/detalhe/?id=${result.value.id}`; else close();
@@ -180,7 +182,7 @@ function OutcomeDialog({ request, update, close }: { request: TriageRequest; upd
     <label className="field"><span>Anotações da triagem <small>Vão para a caderneta como “Triagem”</small></span><textarea rows={4} value={note} onChange={e => setNote(e.target.value)} placeholder="Queixa principal, impressões, combinados…" /></label>
     <div className="field"><span>O atendimento vai continuar?</span><div className="segmented"><button className={continues === true ? 'active' : ''} onClick={() => setContinues(true)}>Sim, seguir acompanhamento</button><button className={continues === false ? 'active' : ''} onClick={() => setContinues(false)}>Não seguir</button></div></div>
     {continues && <div className="recurrence-form">
-      <p className="muted">Defina o horário fixo. As sessões serão lançadas na agenda automaticamente.</p>
+      <p className="muted">Defina o horário fixo e quantas sessões lançar. Elas entram na agenda automaticamente.</p>
       <div className="field-row">
         <label className="field"><span>Dia da semana</span><select value={weekday} onChange={e => setWeekday(Number(e.target.value))}>{WEEKDAYS.map((w, i) => <option key={w} value={i}>{w}</option>)}</select></label>
         <label className="field"><span>Horário</span><input type="time" value={time} onChange={e => setTime(e.target.value)} /></label>
@@ -189,6 +191,7 @@ function OutcomeDialog({ request, update, close }: { request: TriageRequest; upd
         <label className="field"><span>Frequência</span><select value={frequency} onChange={e => setFrequency(e.target.value as Frequency)}><option value="weekly">Semanal</option><option value="biweekly">Quinzenal</option></select></label>
         <label className="field"><span>A partir de</span><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
       </div>
+      <label className="field"><span>Quantas sessões iniciais?</span><input type="number" min={1} max={100} value={sessions} onChange={e => setSessions(Number(e.target.value))} /><small className="muted">Quando acabarem, você adiciona mais pela agenda ou pela ficha do paciente.</small></label>
     </div>}
     <button className="primary full" disabled={continues === undefined} onClick={save}>{continues ? 'Criar paciente e lançar sessões' : 'Encerrar solicitação'}</button>
     <FormError message={error} />

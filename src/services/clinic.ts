@@ -4,7 +4,7 @@ import { addDays, today } from '@/lib/dates';
 import { parseMoney, PLANS, PlanId } from '@/config/plans';
 import { buildSeed, buildTeamAppointments, demoAccount, demoProfessional, demoTeam } from '@/mocks/data';
 import { ProfessionId, PROFESSIONS } from '@/config/professions';
-import { AccountSettings, Appointment, AppointmentStatus, Patient, PatientStatus, Professional, Recurrence, SessionNote, TeamAppointment, TeamMember, TriageRequest } from '@/types';
+import { AccountSettings, Appointment, AppointmentStatus, Patient, PatientStatus, Professional, Recurrence, SessionNote, TeamAppointment, TeamMember, TriageForm, TriageRequest } from '@/types';
 import { findConflict, RECURRENCE_HORIZON_DAYS, recurringDates } from './scheduling';
 import { supabase } from '@/lib/supabase';
 
@@ -290,6 +290,14 @@ export function declineRequest(data: ClinicData, id: string, reason: string) {
 
 export interface TriageOutcome { continues: boolean; note: string; recurrence?: Recurrence; }
 
+/** Anexa (ou remove, com undefined) o formulário de triagem do paciente. */
+export function setTriageForm(data: ClinicData, patientId: string, form?: TriageForm): Outcome {
+  const patient = data.patients.find(p => p.id === patientId);
+  if (!patient) return { error: 'Paciente não encontrado.' };
+  patient.triageForm = form;
+  return {};
+}
+
 /** Fecha a triagem: vira paciente com horário fixo ou é encerrada. */
 export function completeTriage(data: ClinicData, id: string, outcome: TriageOutcome): Outcome<Patient> {
   const request = data.requests.find(r => r.id === id);
@@ -342,16 +350,47 @@ function recurrenceConflict(data: ClinicData, recurrence: Recurrence, patientId?
   if (clashes.length) return `Esse horário fixo bate com ${clashes.length} compromisso(s). Primeiro: ${clashes[0]}`;
 }
 
+/** Sessões do paciente desde `from` (exceto canceladas): o que já ocupa a fase. */
+function usedSince(data: ClinicData, patientId: string, from: string) {
+  return data.appointments.filter(a => a.patientId === patientId && a.kind === 'session' && a.status !== 'canceled' && a.date >= from).length;
+}
+
+/** Situação da fase de sessões: quantas foram previstas, já lançadas e se a fase acabou. */
+export function phaseStatus(data: ClinicData, patient: Patient) {
+  const planned = patient.recurrence?.sessions;
+  if (!patient.recurrence || planned === undefined) return undefined;
+  const used = usedSince(data, patient.id, patient.recurrence.startDate);
+  const remaining = Math.max(0, planned - used);
+  const pending = data.appointments.some(a => a.patientId === patient.id && a.kind === 'session' && a.status === 'scheduled' && a.date >= today());
+  return { planned, used, remaining, over: remaining === 0 && !pending };
+}
+
 function scheduleRecurring(data: ClinicData, patient: Patient, from: string) {
   if (!patient.recurrence || patient.status !== 'active') return;
-  const until = addDays(today(), RECURRENCE_HORIZON_DAYS);
   const minutes = data.professional.availability.sessionMinutes;
   const taken = new Set(data.appointments.filter(a => a.patientId === patient.id && a.kind === 'session').map(a => a.date));
+  // Com fase definida, para quando as sessões previstas estiverem lançadas (sem limite de 90 dias).
+  const planned = patient.recurrence.sessions;
+  let room = planned === undefined ? Infinity : Math.max(0, planned - usedSince(data, patient.id, patient.recurrence.startDate));
+  const until = planned === undefined ? addDays(today(), RECURRENCE_HORIZON_DAYS) : addDays(from, 730);
   for (const date of recurringDates(patient.recurrence, from, until)) {
+    if (room <= 0) break;
     // Nunca sobrepõe: se outro compromisso ou bloqueio ocupou o horário, a data fica de fora.
     if (taken.has(date) || findConflict(data.professional, data.appointments, date, patient.recurrence.time, minutes)) continue;
     data.appointments.push({ id: uid(), kind: 'session', date, time: patient.recurrence.time, minutes, status: 'scheduled', patientId: patient.id, title: patient.name });
+    room--;
   }
+}
+
+/** Adiciona sessões à fase atual, a partir da última lançada. */
+export function extendPhase(data: ClinicData, patientId: string, more: number): Outcome {
+  const patient = data.patients.find(p => p.id === patientId);
+  if (!patient?.recurrence) return { error: 'Este paciente não tem horário fixo.' };
+  if (!Number.isInteger(more) || more < 1 || more > 100) return { error: 'Informe um número de sessões entre 1 e 100.' };
+  const used = usedSince(data, patientId, patient.recurrence.startDate);
+  patient.recurrence = { ...patient.recurrence, sessions: Math.max(patient.recurrence.sessions ?? used, used) + more };
+  scheduleRecurring(data, patient, today());
+  return {};
 }
 
 /** Mantém a agenda dos pacientes ativos preenchida até o horizonte. */
@@ -369,8 +408,11 @@ export function changeRecurrence(data: ClinicData, patientId: string, recurrence
   if (!patient) return { error: 'Paciente não encontrado.' };
   const conflict = recurrenceConflict(data, recurrence, patientId);
   if (conflict) return { error: conflict };
+  // Trocar o horário mantém as sessões que ainda faltam da fase.
+  const remaining = phaseStatus(data, patient)?.remaining;
   removeFutureSessions(data, patientId, today() > recurrence.startDate ? today() : recurrence.startDate);
-  patient.recurrence = recurrence;
+  const sessions = remaining === undefined ? recurrence.sessions : usedSince(data, patientId, recurrence.startDate) + remaining;
+  patient.recurrence = { ...recurrence, sessions };
   scheduleRecurring(data, patient, recurrence.startDate > today() ? recurrence.startDate : today());
   return {};
 }

@@ -1,12 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, NotebookPen } from 'lucide-react';
 import { PLANS } from '@/config/plans';
 import { PROFESSIONS } from '@/config/professions';
 import { formatLong, fromIso, monthGrid, today, WEEKDAYS_SHORT } from '@/lib/dates';
-import { ClinicData, useClinic, viewingAsSecretary } from '@/services/clinic';
+import { ClinicData, phaseStatus, useClinic, viewingAsSecretary } from '@/services/clinic';
 import { Badge, Block, initials, PageTitle } from './shell';
 import { AppointmentRow } from './dashboard';
+import { ExtendDialog } from './patients';
 
 type Update = ReturnType<typeof useClinic>['update'];
 const OWNER = 'owner';
@@ -37,8 +38,16 @@ export function Agenda({ data, update }: { data: ClinicData; update: Update }) {
   const selectedPending = pendingByDay(selected);
   const empty = !selectedOwn.length && !selectedTeam.length && !selectedBlocks.length && !selectedPending.length;
 
+  // Pacientes cujas sessões previstas acabaram: a profissional decide se continuam.
+  const ending = data.patients.filter(p => p.status === 'active' && phaseStatus(data, p)?.over);
+  const [extendFor, setExtendFor] = useState<string>();
+  const extendPatient = data.patients.find(p => p.id === extendFor);
   return <section className="page">
     <PageTitle eyebrow={shared ? 'Agenda compartilhada' : 'Organização'} title="Agenda" text={shared ? 'Os atendimentos de toda a clínica. Cada caderneta continua visível só para o próprio profissional.' : 'Triagens e sessões. As sessões dos pacientes com horário fixo entram sozinhas.'} />
+    {!secretary && ending.length > 0 && <Block title="Sessões para continuar" className="spaced">
+      {ending.map(p => <div key={p.id} className="notice-row"><NotebookPen size={16} /><span><b>{p.name}</b>: as sessões previstas acabaram.</span><button className="primary small" onClick={() => setExtendFor(p.id)}>Adicionar sessões</button></div>)}
+    </Block>}
+    {extendPatient && <ExtendDialog patient={extendPatient} update={update} close={() => setExtendFor(undefined)} />}
     {shared && <div className="tabs">
       <button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Todos</button>
       <button className={filter === OWNER ? 'active' : ''} onClick={() => setFilter(OWNER)}><i className="dot member-0" />{ownerFirst}</button>

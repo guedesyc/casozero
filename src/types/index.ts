@@ -113,7 +113,11 @@ export interface TriageRequest {
 }
 
 export type Frequency = 'weekly' | 'biweekly';
-export interface Recurrence { weekday: number; time: string; frequency: Frequency; startDate: string; }
+/** `sessions`: quantas sessões a fase atual prevê a partir de `startDate` (sem ele, a agenda segue por 90 dias). */
+export interface Recurrence { weekday: number; time: string; frequency: Frequency; startDate: string; sessions?: number; }
+
+/** Formulário de triagem preenchido pela profissional, guardado no bucket privado `triagem`. */
+export interface TriageForm { name: string; path: string; size: number; uploadedAt: string; }
 
 export type PatientStatus = 'active' | 'paused' | 'discharged';
 
@@ -125,6 +129,8 @@ export interface Patient {
   phone: string;
   /** Opcional; usado para o lembrete 1h antes de cada sessão. */
   email?: string;
+  /** Formulário de triagem (arquivo) deste paciente. */
+  triageForm?: TriageForm;
   /** Valor de cada sessão deste paciente; sem ele vale o padrão da conta. */
   sessionPrice?: number;
   guardianName?: string;
