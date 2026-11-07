@@ -109,9 +109,8 @@ export function PatientDetail({ id, sessionId, data, update }: { id?: string; se
 
     {tab === 'dados' && <TriageFormBlock patient={patient} update={update} />}
     {tab === 'dados' && <div className="two-cols">
-      <Block title="O que procurou tratar"><p className="quote">{patient.concern}</p></Block>
+      <Block title="O que procurou tratar"><p className="quote">{patient.concern}</p>{patient.requestId && <Link className="text-link" href={`/app/solicitacoes/detalhe/?id=${patient.requestId}`}>Ver solicitação original <ChevronRight size={14} /></Link>}</Block>
       <Block title="O que imaginava do acompanhamento"><p className="quote">{patient.expectation || '—'}</p></Block>
-      {patient.requestId && <Link className="text-link" href={`/app/solicitacoes/detalhe/?id=${patient.requestId}`}>Ver solicitação original <ChevronRight size={14} /></Link>}
       <Block title="Valor da sessão"><p className="muted">Usado no Financeiro. Em branco, vale o valor padrão da conta.</p><SessionPriceInput patient={patient} update={update} /></Block>
       <PatientEmail patient={patient} update={update} />
       <AccessHistory patientId={patient.id} />
