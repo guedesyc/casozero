@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabase';
 import { toPlanId } from '@/config/plans';
 import { addDays, iso } from '@/lib/dates';
-import { AccountSettings, Appointment, Patient, Professional, RequestStatus, SessionNote, TeamMember, TriageForm, TriageRequest } from '@/types';
+import { AccountSettings, Appointment, OnboardingProgress, Patient, Professional, RequestStatus, SessionNote, TeamMember, TriageForm, TriageRequest } from '@/types';
 import type { ClinicData, ClinicOwner, NewRequest, Outcome } from './clinic';
 
 /**
@@ -20,7 +20,7 @@ const ageText = (value: number | null) => value === null || value === undefined 
 /* Conversões linha ↔ app                                              */
 /* ------------------------------------------------------------------ */
 
-interface Settings { account?: Partial<AccountSettings>; team?: TeamMember[]; welcomeSeen?: boolean; viewAs?: string; }
+interface Settings { account?: Partial<AccountSettings>; team?: TeamMember[]; welcomeSeen?: boolean; viewAs?: string; onboarding?: OnboardingProgress; }
 
 type Row = Record<string, unknown>;
 
@@ -28,7 +28,7 @@ function professionalRow(data: ClinicData, ownerId: string): Row {
   const p = data.professional;
   const settings: Settings = {
     account: { notifyNewRequest: data.account.notifyNewRequest, notifyDailyAgenda: data.account.notifyDailyAgenda, remindPatients: data.account.remindPatients, reminderHours: data.account.reminderHours, twoFactor: data.account.twoFactor, pixKey: data.account.pixKey, pixHolder: data.account.pixHolder, signalAmount: data.account.signalAmount, sessionPrice: data.account.sessionPrice, triagePrice: data.account.triagePrice },
-    team: data.team, welcomeSeen: data.welcomeSeen, viewAs: data.viewAs,
+    team: data.team, welcomeSeen: data.welcomeSeen, viewAs: data.viewAs, onboarding: data.onboarding,
   };
   return {
     id: ownerId, slug: p.slug, name: p.name, email: data.account.email || null, phone: data.account.phone || null,
@@ -40,7 +40,7 @@ function professionalRow(data: ClinicData, ownerId: string): Row {
   };
 }
 
-function fromProfessionalRow(row: Row): { professional: Professional; account: AccountSettings; team: TeamMember[]; welcomeSeen?: boolean; viewAs?: string } {
+function fromProfessionalRow(row: Row): { professional: Professional; account: AccountSettings; team: TeamMember[]; welcomeSeen?: boolean; viewAs?: string; onboarding?: OnboardingProgress } {
   const settings = (row.settings ?? {}) as Settings;
   return {
     professional: {
@@ -57,7 +57,7 @@ function fromProfessionalRow(row: Row): { professional: Professional; account: A
       remindPatients: settings.account?.remindPatients ?? false, reminderHours: settings.account?.reminderHours ?? 24, twoFactor: false,
       pixKey: settings.account?.pixKey ?? '', pixHolder: settings.account?.pixHolder ?? '', signalAmount: settings.account?.signalAmount ?? '', sessionPrice: settings.account?.sessionPrice ?? '', triagePrice: settings.account?.triagePrice ?? '',
     },
-    team: settings.team ?? [], welcomeSeen: settings.welcomeSeen, viewAs: settings.viewAs,
+    team: settings.team ?? [], welcomeSeen: settings.welcomeSeen, viewAs: settings.viewAs, onboarding: settings.onboarding,
   };
 }
 
@@ -144,7 +144,7 @@ export async function fetchClinic(owner: ClinicOwner, blank: () => ClinicData): 
   for (const result of [requests, patients, appointments, notes]) if (result.error) throw result.error;
   const base = fromProfessionalRow(pro as Row);
   return {
-    professional: base.professional, account: base.account, team: base.team, teamAppointments: [], welcomeSeen: base.welcomeSeen, viewAs: base.viewAs,
+    professional: base.professional, account: base.account, team: base.team, teamAppointments: [], welcomeSeen: base.welcomeSeen, viewAs: base.viewAs, onboarding: base.onboarding,
     plan: toPlanId(subscription.data?.plan_id) ?? 'gratis',
     requests: (requests.data ?? []).map(fromRequestRow),
     patients: (patients.data ?? []).map(fromPatientRow),

@@ -8,7 +8,7 @@ import { PLANS, PlanId, formatBRL, formatMoney, priceLabel, toPlanId } from '@/c
 import { MIN_CLINIC_SEATS } from '@/config/stripe';
 import { formatShort, formatStamp, iso, today, WEEKDAYS } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
-import { ClinicData, flushClinic, resetClinic, saveAccount, saveProfessional, saveTeam, setClinicOwner, setPlan, setViewAs, slugify, slugifyTopic, uid, useClinic } from '@/services/clinic';
+import { ClinicData, flushClinic, resetClinic, markOnboarding, saveAccount, saveProfessional, saveTeam, setClinicOwner, setPlan, setViewAs, slugify, slugifyTopic, uid, useClinic } from '@/services/clinic';
 import { ProfessionPicker } from '@/components/ui/profession-picker';
 import { isSlugAvailable } from '@/services/remote';
 import { Avatar } from '@/components/public/profile';
@@ -45,7 +45,7 @@ export function AvailabilityPage({ data, update }: { data: ClinicData; update: U
   const invalid = upcoming.some(b => !b.allDay && b.start >= b.end) || ordered.some(w => w.enabled && w.start >= w.end);
   return <section className="page">
     <PageTitle eyebrow="Agenda" title="Disponibilidade" text="Os horários livres que aparecem no seu link para a triagem.">
-      <SaveButton dirty={dirty && !invalid} onSave={saveWith(update, d => saveProfessional(d, { availability: value }))} />
+      <SaveButton dirty={dirty && !invalid} onSave={saveWith(update, d => { saveProfessional(d, { availability: value }); markOnboarding(d, 'availabilitySaved'); })} />
     </PageTitle>
     {invalid && <FormError message="Há um horário com início depois do fim. Corrija antes de salvar." />}
     <div className="two-cols">
