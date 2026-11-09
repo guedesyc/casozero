@@ -10,7 +10,7 @@ import { ClinicData, flushClinic, markWelcomeSeen, resetClinic, setClinicOwner, 
 import { Avatar } from '@/components/public/profile';
 import { AppointmentStatus, PatientStatus, RequestStatus } from '@/types';
 import { BrandLockup } from '@/components/ui/brand';
-import { OnboardingChecklist, OnboardingIntro, useOnboarding } from './onboarding';
+import { OnboardingChecklist, OnboardingIntro } from './onboarding';
 
 const NAV: { group: string; items: { label: string; href: string; icon: typeof Inbox }[] }[] = [
   { group: 'Atendimento', items: [
@@ -56,21 +56,17 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
   const [auth, setAuth] = useState<'checking' | 'demo' | 'ok'>('checking');
   const [open, setOpen] = useState(false);
   const [syncError, setSyncError] = useState('');
-  const [ownerId, setOwnerId] = useState('');
-  const onboarding = useOnboarding(ownerId || undefined);
   useEffect(() => {
     const onError = (e: Event) => setSyncError((e as CustomEvent<string>).detail);
     window.addEventListener(SYNC_ERROR_EVENT, onError);
     return () => window.removeEventListener(SYNC_ERROR_EVENT, onError);
   }, []);
   useEffect(() => {
-    // Sem Supabase, o painel é a demonstração: o passo a passo também aparece, guardado neste navegador.
-    if (!supabase) { setOwnerId('demo'); setAuth('demo'); return; }
+    if (!supabase) { setAuth('demo'); return; }
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { window.location.href = '/login'; return; }
       // Cada conta usa os próprios dados; uma conta nova começa vazia.
       setClinicOwner({ id: user.id, email: user.email, metadata: user.user_metadata ?? {} });
-      setOwnerId(user.id);
       setAuth('ok');
     });
   }, []);
@@ -107,7 +103,7 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
     </aside>
     <main className="panel-main">
       {auth === 'demo' && <div className="demo-banner">Modo demonstração: os dados ficam salvos apenas neste navegador. <button onClick={() => { if (confirm('Apagar tudo o que foi feito e voltar aos dados de exemplo?')) resetClinic(); }}>Restaurar exemplo</button></div>}
-      {!secretary && <OnboardingChecklist onboarding={onboarding} slug={pro.slug} />}
+      {!secretary && <OnboardingChecklist data={data} update={update} slug={pro.slug} />}
       {syncError && <div className="sync-error" role="alert">{syncError} <button onClick={() => setSyncError('')} aria-label="Fechar aviso"><X size={14} /></button></div>}
       {secretary && <div className="viewas-banner">Você está vendo o painel como <b>{secretary.name}</b> (secretária): só a agenda, sem caderneta. <button onClick={async () => { update(d => setViewAs(d, undefined)); await flushClinic(); window.location.href = '/app/equipe'; }}>Voltar ao painel de {pro.name.split(' ')[0]}</button></div>}
       {blocked
@@ -116,7 +112,7 @@ export function PanelShell({ children }: { children: (data: ClinicData, update: 
     </main>
     {auth === 'ok' && !secretary && data.plan === 'gratis' && data.welcomeSeen === false && <WelcomeFree close={() => update(d => markWelcomeSeen(d))} name={pro.name} />}
     {/* Primeiro acesso: o passo a passo aparece depois da boas-vindas do plano Grátis, uma única vez. */}
-    {(auth === 'ok' || auth === 'demo') && !secretary && !(data.plan === 'gratis' && data.welcomeSeen === false) && onboarding.state && !onboarding.state.seen && <OnboardingIntro onboarding={onboarding} name={pro.name} />}
+    {(auth === 'ok' || auth === 'demo') && !secretary && !(data.plan === 'gratis' && data.welcomeSeen === false) && !data.onboarding?.seen && <OnboardingIntro update={update} name={pro.name} />}
   </div>;
 }
 

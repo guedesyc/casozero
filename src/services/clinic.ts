@@ -4,7 +4,7 @@ import { addDays, today } from '@/lib/dates';
 import { parseMoney, PLANS, PlanId } from '@/config/plans';
 import { buildSeed, buildTeamAppointments, demoAccount, demoProfessional, demoTeam } from '@/mocks/data';
 import { ProfessionId, PROFESSIONS } from '@/config/professions';
-import { AccountSettings, Appointment, AppointmentStatus, Patient, PatientStatus, Professional, Recurrence, SessionNote, TeamAppointment, TeamMember, TriageForm, TriageRequest } from '@/types';
+import { AccountSettings, Appointment, AppointmentStatus, OnboardingProgress, Patient, PatientStatus, Professional, Recurrence, SessionNote, TeamAppointment, TeamMember, TriageForm, TriageRequest } from '@/types';
 import { findConflict, RECURRENCE_HORIZON_DAYS, recurringDates } from './scheduling';
 import { supabase } from '@/lib/supabase';
 
@@ -28,6 +28,8 @@ export interface ClinicData {
   notes: SessionNote[];
   /** Conta real: o aviso de boas-vindas do plano Grátis já foi visto. */
   welcomeSeen?: boolean;
+  /** Passo a passo de primeiro acesso (guardado na conta). */
+  onboarding?: OnboardingProgress;
 }
 
 /** Resultado das operações que podem ser recusadas por conflito de horário. */
@@ -513,6 +515,7 @@ export function saveTeam(data: ClinicData, team: TeamMember[]) {
 export function setViewAs(data: ClinicData, memberId?: string) { data.viewAs = memberId; }
 
 export function markWelcomeSeen(data: ClinicData) { data.welcomeSeen = true; }
+export function markOnboarding(data: ClinicData, key: keyof OnboardingProgress) { data.onboarding = { ...data.onboarding, [key]: true }; }
 
 export function saveAccount(data: ClinicData, values: Partial<AccountSettings>) {
   data.account = { ...data.account, ...values };

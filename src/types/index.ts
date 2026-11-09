@@ -65,6 +65,18 @@ export interface AccountSettings {
   twoFactor: boolean;
 }
 
+/** Progresso do passo a passo de primeiro acesso, guardado na conta. */
+export interface OnboardingProgress {
+  /** Pop-up de primeiro acesso já foi visto ou fechado. */
+  seen?: boolean;
+  /** Horários salvos na tela de Disponibilidade. */
+  availabilitySaved?: boolean;
+  /** "Abrir minha página" foi clicado no quadro. */
+  linkOpened?: boolean;
+  /** Quadro ocultado depois de concluído. */
+  hidden?: boolean;
+}
+
 export type RequestStatus =
   | 'pending'      // paciente pediu, aguardando a profissional
   | 'proposed'     // profissional sugeriu outro horário; o paciente aceita pelo link
