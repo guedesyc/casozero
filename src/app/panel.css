@@ -303,3 +303,37 @@
 .phase-line .text-link{margin-left:8px}
 .file-pick{position:relative;cursor:pointer}
 .file-pick input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+
+/* Primeiro acesso: passo a passo */
+.onboard-list{list-style:none;padding:0;margin:0 0 16px;display:grid;gap:10px;text-align:left}
+.onboard-list li{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.onboard-list strong{display:block}
+.onboard-list small{color:var(--muted);line-height:1.5}
+.onboard-num{flex:0 0 24px;height:24px;border-radius:50%;background:var(--soft);display:grid;place-items:center;font-size:12px;font-weight:600}
+.onboard-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 18px}
+.onboard-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.onboard-head h2{font:600 18px/1.25 Fraunces,serif;margin:2px 0 0}
+.onboard-dismiss{background:none;border:0;cursor:pointer;color:var(--muted);padding:4px}
+.onboard-progress{height:6px;background:var(--soft);border-radius:99px;overflow:hidden;margin:12px 0 4px}
+.onboard-progress span{display:block;height:100%;background:var(--green);transition:width .3s}
+.onboard-steps{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:4px}
+.onboard-steps li{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.onboard-steps li.done .onboard-body strong{text-decoration:line-through;color:var(--muted)}
+.onboard-check{flex:0 0 28px;height:28px;border-radius:50%;border:1.5px solid var(--ink);background:#fff;cursor:pointer;display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--ink)}
+.onboard-steps li.done .onboard-check{background:var(--green);border-color:var(--green);color:#fff}
+.onboard-body{flex:1;min-width:0;display:grid;gap:4px}
+.onboard-body small{color:var(--muted);font-size:13px;line-height:1.5}
+.onboard-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.onboard-actions a{display:inline-flex;align-items:center;gap:4px;text-decoration:none}
+.onboard-tools{display:flex;gap:2px;flex:0 0 auto}
+.onboard-tools .chev-up{transform:rotate(180deg)}
+.onboard-tools svg{transition:transform .2s}
+@media (max-width:720px){
+  .onboard-card{padding:14px 14px}
+  .onboard-head h2{font-size:16px}
+  .onboard-steps li{padding:10px 0}
+  .onboard-actions a{width:100%;justify-content:center}
+}
+
+/* Ao abrir um passo do guia, o título não fica escondido atrás da barra do celular */
+.page-title{scroll-margin-top:72px}
